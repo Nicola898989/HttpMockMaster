@@ -17,22 +17,27 @@ namespace BackendService
         private readonly ILogger<InterceptorService> _logger;
         private readonly ProxyService _proxyService;
         private readonly RuleService _ruleService;
+        private readonly TestScenarioService _testScenarioService;
         private string _proxyDomain;
         private readonly int _port;
+        private int? _recordingScenarioId;
 
         public InterceptorService(
             DatabaseContext dbContext, 
             ILogger<InterceptorService> logger, 
             ProxyService proxyService, 
-            RuleService ruleService)
+            RuleService ruleService,
+            TestScenarioService testScenarioService)
         {
             _listener = new HttpListener();
             _dbContext = dbContext;
             _logger = logger;
             _proxyService = proxyService;
             _ruleService = ruleService;
+            _testScenarioService = testScenarioService;
             _port = 8888; // Default port for interception
             _proxyDomain = ""; // Will be set dynamically
+            _recordingScenarioId = null; // Not recording by default
         }
 
         public void SetProxyDomain(string domain)
@@ -43,6 +48,25 @@ namespace BackendService
         public string GetProxyDomain()
         {
             return _proxyDomain;
+        }
+        
+        public void StartRecording(int scenarioId)
+        {
+            _recordingScenarioId = scenarioId;
+            _testScenarioService.StartRecording(scenarioId);
+            _logger.LogInformation($"Started recording to test scenario with ID: {scenarioId}");
+        }
+        
+        public void StopRecording()
+        {
+            _recordingScenarioId = null;
+            _testScenarioService.StopRecording();
+            _logger.LogInformation("Stopped recording to test scenario");
+        }
+        
+        public bool IsRecording()
+        {
+            return _recordingScenarioId.HasValue;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -98,12 +122,16 @@ namespace BackendService
                 
                 _logger.LogInformation($"Received {request.HttpMethod} request for {request.Url}");
 
+                // Store HTTP response to be recorded
+                Models.HttpResponse responseModel = null;
+                
                 // Check if there's a matching rule
                 var rule = await _ruleService.FindMatchingRuleAsync(request);
                 if (rule != null)
                 {
                     _logger.LogInformation($"Found matching rule for {request.Url}. Returning configured response.");
                     await SendResponseFromRuleAsync(response, rule.Response);
+                    responseModel = rule.Response;
                 }
                 // If we have a proxy domain and no rule matched, forward the request
                 else if (!string.IsNullOrEmpty(_proxyDomain))
@@ -111,6 +139,7 @@ namespace BackendService
                     _logger.LogInformation($"Forwarding request to proxy target: {_proxyDomain}");
                     var proxyResponse = await _proxyService.ForwardRequestAsync(request, _proxyDomain);
                     await SendProxyResponseAsync(response, proxyResponse);
+                    responseModel = proxyResponse;
                 }
                 // No rule or proxy - return 404
                 else
@@ -120,6 +149,39 @@ namespace BackendService
                     byte[] buffer = Encoding.UTF8.GetBytes("No matching rule found for this request.");
                     response.ContentLength64 = buffer.Length;
                     await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+                    
+                    // Create a 404 response model
+                    responseModel = new Models.HttpResponse
+                    {
+                        StatusCode = 404,
+                        Body = "No matching rule found for this request.",
+                        Headers = "Content-Type: text/plain",
+                        Timestamp = DateTime.UtcNow
+                    };
+                    _dbContext.Responses.Add(responseModel);
+                    await _dbContext.SaveChangesAsync();
+                }
+                
+                // If recording to a test scenario, store this request/response pair
+                if (_recordingScenarioId.HasValue && responseModel != null)
+                {
+                    try 
+                    {
+                        _logger.LogInformation($"Recording request/response to test scenario {_recordingScenarioId.Value}");
+                        
+                        // Use TestScenarioService to record this request/response pair
+                        await _testScenarioService.RecordRequestResponseAsync(
+                            _recordingScenarioId.Value,
+                            requestModel,
+                            responseModel
+                        );
+                        
+                        _logger.LogInformation($"Successfully recorded request to scenario {_recordingScenarioId.Value}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error recording to test scenario");
+                    }
                 }
 
                 response.Close();

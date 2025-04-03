@@ -9,6 +9,8 @@ namespace BackendService
         public DbSet<Models.HttpRequest> Requests { get; set; } = null!;
         public DbSet<Models.HttpResponse> Responses { get; set; } = null!;
         public DbSet<Rule> Rules { get; set; } = null!;
+        public DbSet<TestScenario> TestScenarios { get; set; } = null!;
+        public DbSet<ScenarioStep> ScenarioSteps { get; set; } = null!;
 
         public DatabaseContext(DbContextOptions<DatabaseContext> options)
             : base(options)
@@ -68,6 +70,40 @@ namespace BackendService
                 .WithMany()
                 .HasForeignKey(r => r.ResponseId)
                 .OnDelete(DeleteBehavior.Cascade);
+                
+            // Configure TestScenario
+            modelBuilder.Entity<TestScenario>()
+                .HasKey(ts => ts.Id);
+
+            modelBuilder.Entity<TestScenario>()
+                .Property(ts => ts.Name)
+                .IsRequired();
+                
+            modelBuilder.Entity<TestScenario>()
+                .Property(ts => ts.CreatedAt)
+                .IsRequired();
+                
+            // Configure ScenarioStep
+            modelBuilder.Entity<ScenarioStep>()
+                .HasKey(ss => ss.Id);
+                
+            modelBuilder.Entity<ScenarioStep>()
+                .HasOne(ss => ss.TestScenario)
+                .WithMany(ts => ts.Steps)
+                .HasForeignKey(ss => ss.TestScenarioId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            modelBuilder.Entity<ScenarioStep>()
+                .HasOne(ss => ss.HttpRequest)
+                .WithMany()
+                .HasForeignKey(ss => ss.HttpRequestId)
+                .OnDelete(DeleteBehavior.SetNull);
+                
+            modelBuilder.Entity<ScenarioStep>()
+                .HasOne(ss => ss.HttpResponse)
+                .WithMany()
+                .HasForeignKey(ss => ss.HttpResponseId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

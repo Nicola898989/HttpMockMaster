@@ -108,6 +108,29 @@ namespace BackendService
                                     IsActive INTEGER NOT NULL,
                                     ResponseId INTEGER NOT NULL,
                                     FOREIGN KEY (ResponseId) REFERENCES Responses(Id) ON DELETE CASCADE
+                                );
+                                
+                                CREATE TABLE IF NOT EXISTS TestScenarios (
+                                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    Name TEXT NOT NULL,
+                                    Description TEXT,
+                                    CreatedAt TEXT NOT NULL,
+                                    LastRunAt TEXT,
+                                    IsActive INTEGER NOT NULL DEFAULT 1
+                                );
+                                
+                                CREATE TABLE IF NOT EXISTS ScenarioSteps (
+                                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    TestScenarioId INTEGER NOT NULL,
+                                    HttpRequestId INTEGER,
+                                    HttpResponseId INTEGER,
+                                    Name TEXT NOT NULL,
+                                    Description TEXT,
+                                    Order INTEGER NOT NULL,
+                                    IsActive INTEGER NOT NULL DEFAULT 1,
+                                    FOREIGN KEY (TestScenarioId) REFERENCES TestScenarios(Id) ON DELETE CASCADE,
+                                    FOREIGN KEY (HttpRequestId) REFERENCES Requests(Id) ON DELETE SET NULL,
+                                    FOREIGN KEY (HttpResponseId) REFERENCES Responses(Id) ON DELETE SET NULL
                                 );";
                             cmd.ExecuteNonQuery();
                         }
@@ -148,6 +171,7 @@ namespace BackendService
             // Services
             services.AddScoped<RuleService>();
             services.AddScoped<ProxyService>();
+            services.AddScoped<TestScenarioService>();
             services.AddSingleton<InterceptorService>();
             services.AddHostedService(provider => provider.GetRequiredService<InterceptorService>());
             

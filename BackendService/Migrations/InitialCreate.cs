@@ -11,15 +11,15 @@ namespace BackendService.Migrations
                 name: "Requests",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                    Id = table.Column<int>(nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
-                    Url = table.Column<string>(type: "TEXT", nullable: false),
-                    Method = table.Column<string>(type: "TEXT", nullable: false),
+                    Url = table.Column<string>(nullable: false),
+                    Method = table.Column<string>(nullable: false),
                     Headers = table.Column<string>(type: "TEXT", nullable: true),
                     Body = table.Column<string>(type: "TEXT", nullable: true),
-                    Timestamp = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    IsProxied = table.Column<bool>(type: "INTEGER", nullable: false),
-                    TargetDomain = table.Column<string>(type: "TEXT", nullable: true)
+                    Timestamp = table.Column<DateTime>(nullable: false),
+                    IsProxied = table.Column<bool>(nullable: false),
+                    TargetDomain = table.Column<string>(nullable: true)
                 },
                 constraints: table =>
                 {
@@ -30,35 +30,41 @@ namespace BackendService.Migrations
                 name: "Responses",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                    Id = table.Column<int>(nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
-                    RequestId = table.Column<int>(type: "INTEGER", nullable: true),
-                    StatusCode = table.Column<int>(type: "INTEGER", nullable: false),
+                    RequestId = table.Column<int>(nullable: true),
+                    StatusCode = table.Column<int>(nullable: false),
                     Headers = table.Column<string>(type: "TEXT", nullable: true),
                     Body = table.Column<string>(type: "TEXT", nullable: true),
-                    Timestamp = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    Timestamp = table.Column<DateTime>(nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Responses", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Responses_Requests_RequestId",
+                        column: x => x.RequestId,
+                        principalTable: "Requests",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
                 name: "Rules",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                    Id = table.Column<int>(nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
-                    Name = table.Column<string>(type: "TEXT", nullable: false),
-                    Description = table.Column<string>(type: "TEXT", nullable: true),
-                    Method = table.Column<string>(type: "TEXT", nullable: true),
-                    PathPattern = table.Column<string>(type: "TEXT", nullable: true),
-                    QueryPattern = table.Column<string>(type: "TEXT", nullable: true),
-                    HeaderPattern = table.Column<string>(type: "TEXT", nullable: true),
-                    BodyPattern = table.Column<string>(type: "TEXT", nullable: true),
-                    Priority = table.Column<int>(type: "INTEGER", nullable: false),
-                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false),
-                    ResponseId = table.Column<int>(type: "INTEGER", nullable: false)
+                    Name = table.Column<string>(nullable: false),
+                    Description = table.Column<string>(nullable: true),
+                    Method = table.Column<string>(nullable: true),
+                    PathPattern = table.Column<string>(nullable: true),
+                    QueryPattern = table.Column<string>(nullable: true),
+                    HeaderPattern = table.Column<string>(nullable: true),
+                    BodyPattern = table.Column<string>(nullable: true),
+                    Priority = table.Column<int>(nullable: false),
+                    IsActive = table.Column<bool>(nullable: false),
+                    ResponseId = table.Column<int>(nullable: false)
                 },
                 constraints: table =>
                 {
@@ -72,6 +78,11 @@ namespace BackendService.Migrations
                 });
 
             migrationBuilder.CreateIndex(
+                name: "IX_Responses_RequestId",
+                table: "Responses",
+                column: "RequestId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Rules_ResponseId",
                 table: "Rules",
                 column: "ResponseId");
@@ -80,13 +91,13 @@ namespace BackendService.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "Requests");
-
-            migrationBuilder.DropTable(
                 name: "Rules");
 
             migrationBuilder.DropTable(
                 name: "Responses");
+
+            migrationBuilder.DropTable(
+                name: "Requests");
         }
     }
 }
