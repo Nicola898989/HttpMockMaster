@@ -39,6 +39,11 @@ namespace BackendService
         {
             _proxyDomain = domain;
         }
+        
+        public string GetProxyDomain()
+        {
+            return _proxyDomain;
+        }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {

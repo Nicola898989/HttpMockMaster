@@ -17,6 +17,27 @@ namespace BackendService.Controllers
             _interceptorService = interceptorService;
             _logger = logger;
         }
+        
+        [HttpGet]
+        public IActionResult GetProxyConfiguration()
+        {
+            try 
+            {
+                var targetDomain = _interceptorService.GetProxyDomain();
+                var isEnabled = !string.IsNullOrEmpty(targetDomain);
+                
+                return Ok(new 
+                { 
+                    isEnabled = isEnabled,
+                    targetDomain = targetDomain 
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving proxy configuration");
+                return StatusCode(500, "Internal server error");
+            }
+        }
 
         [HttpPost("configure")]
         public IActionResult ConfigureProxy([FromBody] ProxyConfiguration config)

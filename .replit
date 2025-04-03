@@ -28,10 +28,14 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "dotnet run --project BackendService"
-waitForPort = 5000
+waitForPort = 8888
 
 [deployment]
 run = ["sh", "-c", "dotnet run --project BackendService"]
+
+[[ports]]
+localPort = 5000
+externalPort = 5000
 
 [[ports]]
 localPort = 8888
