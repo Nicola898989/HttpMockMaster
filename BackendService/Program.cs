@@ -148,7 +148,8 @@ namespace BackendService
             // Services
             services.AddScoped<RuleService>();
             services.AddScoped<ProxyService>();
-            services.AddHostedService<InterceptorService>();
+            services.AddSingleton<InterceptorService>();
+            services.AddHostedService(provider => provider.GetRequiredService<InterceptorService>());
             
             // Controllers and API
             services.AddControllers();
