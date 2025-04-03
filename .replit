@@ -1,0 +1,38 @@
+modules = ["nodejs-20", "dotnet-7.0"]
+
+[nix]
+channel = "stable-24_05"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Backend Service"
+
+[[workflows.workflow]]
+name = "Backend Service"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "dotnet run --project BackendService"
+waitForPort = 5000
+
+[deployment]
+run = ["sh", "-c", "dotnet run --project BackendService"]
+
+[[ports]]
+localPort = 8888
+externalPort = 80
