@@ -24,14 +24,14 @@ namespace BackendService.Controllers
 
         public class PerformanceMetricsResponse
         {
-            public string TimeFrame { get; set; }
-            public string StartDate { get; set; }
-            public string EndDate { get; set; }
+            public string? TimeFrame { get; set; }
+            public string? StartDate { get; set; }
+            public string? EndDate { get; set; }
             public int TotalRequests { get; set; }
-            public ResponseTimeMetrics ResponseTimeMetrics { get; set; }
-            public RequestSizeMetrics RequestSizeMetrics { get; set; }
-            public List<MethodMetric> MethodMetrics { get; set; }
-            public List<StatusCodeMetric> StatusCodeMetrics { get; set; }
+            public ResponseTimeMetrics? ResponseTimeMetrics { get; set; } = new ResponseTimeMetrics();
+            public RequestSizeMetrics? RequestSizeMetrics { get; set; } = new RequestSizeMetrics();
+            public List<MethodMetric>? MethodMetrics { get; set; } = new List<MethodMetric>();
+            public List<StatusCodeMetric>? StatusCodeMetrics { get; set; } = new List<StatusCodeMetric>();
         }
 
         [HttpGet("metrics")]
@@ -57,13 +57,9 @@ namespace BackendService.Controllers
                     };
                 }
 
-                // Convertire le date in stringhe per la query (il formato dipende dal database)
-                string startDateStr = startDate.Value.ToString("o");
-                string endDateStr = endDate.Value.ToString("o");
-
                 // Query per ottenere i dati di performance delle richieste
                 var requests = await _context.Requests
-                    .Where(r => string.Compare(r.Timestamp, startDateStr) >= 0 && string.Compare(r.Timestamp, endDateStr) <= 0)
+                    .Where(r => r.Timestamp >= startDate.Value && r.Timestamp <= endDate.Value)
                     .Include(r => r.Response)
                     .ToListAsync();
 
@@ -103,11 +99,11 @@ namespace BackendService.Controllers
 
         public class TimeSeriesResponse
         {
-            public string TimeFrame { get; set; }
-            public string StartDate { get; set; }
-            public string EndDate { get; set; }
-            public string GroupBy { get; set; }
-            public List<TimeSeriesPoint> Data { get; set; }
+            public string? TimeFrame { get; set; }
+            public string? StartDate { get; set; }
+            public string? EndDate { get; set; }
+            public string? GroupBy { get; set; }
+            public List<TimeSeriesPoint>? Data { get; set; } = new List<TimeSeriesPoint>();
         }
 
         [HttpGet("timeseries")]
@@ -134,11 +130,8 @@ namespace BackendService.Controllers
                     };
                 }
 
-                string startDateStr = startDate.Value.ToString("o");
-                string endDateStr = endDate.Value.ToString("o");
-
                 var requests = await _context.Requests
-                    .Where(r => string.Compare(r.Timestamp, startDateStr) >= 0 && string.Compare(r.Timestamp, endDateStr) <= 0)
+                    .Where(r => r.Timestamp >= startDate.Value && r.Timestamp <= endDate.Value)
                     .Include(r => r.Response)
                     .ToListAsync();
 
@@ -181,12 +174,10 @@ namespace BackendService.Controllers
             foreach (var request in requests.Where(r => r.Response != null))
             {
                 // Parsificare i timestamp (il formato esatto dipende da come sono salvati nel database)
-                if (DateTime.TryParse(request.Timestamp, out var requestTime) &&
-                    DateTime.TryParse(request.Response.Timestamp, out var responseTime))
-                {
-                    double responseTimeMs = (responseTime - requestTime).TotalMilliseconds;
-                    responseTimes.Add(responseTimeMs);
-                }
+                var requestTime = request.Timestamp;
+                var responseTime = request.Response.Timestamp;
+                double responseTimeMs = (responseTime - requestTime).TotalMilliseconds;
+                responseTimes.Add(responseTimeMs);
             }
 
             // Se non ci sono dati, restituire valori di default
@@ -226,8 +217,8 @@ namespace BackendService.Controllers
         
         public class RequestSizeMetrics
         {
-            public SizeMetrics Request { get; set; }
-            public SizeMetrics Response { get; set; }
+            public SizeMetrics? Request { get; set; } = new SizeMetrics();
+            public SizeMetrics? Response { get; set; } = new SizeMetrics();
         }
         
         private RequestSizeMetrics CalculateRequestSizeMetrics(List<BackendService.Models.HttpRequest> requests)
@@ -270,7 +261,7 @@ namespace BackendService.Controllers
 
         public class MethodMetric
         {
-            public string Method { get; set; }
+            public string? Method { get; set; }
             public int Count { get; set; }
             public double AvgResponseTime { get; set; }
         }
@@ -285,15 +276,7 @@ namespace BackendService.Controllers
                     Method = g.Key,
                     Count = g.Count(),
                     AvgResponseTime = g.Where(r => r.Response != null)
-                        .Select(r => {
-                            if (r.Response != null && 
-                                DateTime.TryParse(r.Timestamp, out var requestTime) &&
-                                DateTime.TryParse(r.Response.Timestamp, out var responseTime))
-                            {
-                                return (responseTime - requestTime).TotalMilliseconds;
-                            }
-                            return 0.0d;
-                        })
+                        .Select(r => r.Response != null ? (r.Response.Timestamp - r.Timestamp).TotalMilliseconds : 0)
                         .DefaultIfEmpty(0)
                         .Average()
                 })
@@ -305,7 +288,7 @@ namespace BackendService.Controllers
 
         public class StatusCodeMetric
         {
-            public string StatusClass { get; set; }
+            public string? StatusClass { get; set; }
             public int Count { get; set; }
             public double Percentage { get; set; }
         }
@@ -315,7 +298,7 @@ namespace BackendService.Controllers
             // Contare le risposte per codice di stato HTTP
             var statusCounts = requests
                 .Where(r => r.Response != null)
-                .GroupBy(r => r.Response.StatusCode / 100) // Raggruppa per classe di stato (2xx, 3xx, 4xx, 5xx)
+                .GroupBy(r => r.Response != null ? r.Response.StatusCode / 100 : 0) // Raggruppa per classe di stato (2xx, 3xx, 4xx, 5xx)
                 .Select(g => new StatusCodeMetric
                 {
                     StatusClass = $"{g.Key}xx",
@@ -330,7 +313,7 @@ namespace BackendService.Controllers
 
         public class TimeSeriesPoint
         {
-            public string Timestamp { get; set; }
+            public string? Timestamp { get; set; }
             public int RequestCount { get; set; }
             public double AvgResponseTime { get; set; }
             public double SuccessRate { get; set; }
@@ -354,12 +337,12 @@ namespace BackendService.Controllers
                 timeBuckets.Add(time);
             }
 
-            // Convertire i timestamp delle richieste in oggetti DateTime
+            // Utilizzare i timestamp delle richieste già come oggetti DateTime
             var requestsWithDateTime = requests
                 .Select(r => new
                 {
                     Request = r,
-                    TimestampDate = DateTime.TryParse(r.Timestamp, out var dt) ? dt : startDate
+                    TimestampDate = r.Timestamp
                 })
                 .ToList();
 
@@ -378,11 +361,9 @@ namespace BackendService.Controllers
                 var responseTimes = bucketRequests
                     .Where(r => r.Response != null)
                     .Select(r => {
-                        if (r.Response != null && 
-                            DateTime.TryParse(r.Timestamp, out var requestTime) &&
-                            DateTime.TryParse(r.Response.Timestamp, out var responseTime))
+                        if (r.Response != null)
                         {
-                            return (responseTime - requestTime).TotalMilliseconds;
+                            return (r.Response.Timestamp - r.Timestamp).TotalMilliseconds;
                         }
                         return 0.0d;
                     })

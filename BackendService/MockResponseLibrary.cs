@@ -68,7 +68,7 @@ namespace BackendService
                 StatusCode = template.StatusCode,
                 Headers = template.Headers,
                 Body = template.Body,
-                Timestamp = DateTime.UtcNow.ToString("o")
+                Timestamp = DateTime.UtcNow
             };
             
             return await ApplyCustomizationAsync(response, customization);
@@ -150,14 +150,14 @@ namespace BackendService
                 existing.StatusCode = template.StatusCode;
                 existing.Headers = template.Headers;
                 existing.Body = template.Body;
-                existing.UpdatedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+                existing.UpdatedAt = DateTime.UtcNow;
                 existing.Category = template.Category;
             }
             else
             {
                 // Crea un nuovo template
                 template.IsSystem = false;
-                template.CreatedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+                template.CreatedAt = DateTime.UtcNow;
                 
                 _dbContext.ResponseTemplates.Add(template);
             }
@@ -203,7 +203,7 @@ namespace BackendService
                 if (!exists)
                 {
                     template.IsSystem = true;
-                    template.CreatedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+                    template.CreatedAt = DateTime.UtcNow;
                     
                     _dbContext.ResponseTemplates.Add(template);
                 }

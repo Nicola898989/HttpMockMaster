@@ -44,7 +44,7 @@ namespace BackendService
                     StatusCode = 200,
                     Headers = "Content-Type: application/json",
                     Body = "{\"message\": \"Mocked response\"}",
-                    Timestamp = DateTime.UtcNow.ToString("o")
+                    Timestamp = DateTime.UtcNow
                 };
             }
 

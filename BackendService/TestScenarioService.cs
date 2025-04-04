@@ -22,7 +22,7 @@ namespace BackendService
         private readonly ILogger<TestScenarioService> _logger;
         private readonly HttpClient _httpClient;
         private int? _recordingScenarioId;
-        private string _recordingStartTime;
+        private DateTime? _recordingStartTime;
 
         /// <summary>
         /// Indica se la registrazione è attiva.
@@ -35,9 +35,9 @@ namespace BackendService
         public int? RecordingScenarioId => _recordingScenarioId;
         
         /// <summary>
-        /// Ottiene il timestamp di inizio della registrazione corrente come stringa, o stringa vuota se non in registrazione.
+        /// Ottiene il timestamp di inizio della registrazione corrente, o null se non in registrazione.
         /// </summary>
-        public string RecordingStartTime => IsRecording ? _recordingStartTime : "";
+        public DateTime? RecordingStartTime => IsRecording ? _recordingStartTime : null;
 
         /// <summary>
         /// Inizializza una nuova istanza di TestScenarioService.
@@ -50,7 +50,7 @@ namespace BackendService
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _httpClient = new HttpClient();
             _recordingScenarioId = null;
-            _recordingStartTime = "";
+            _recordingStartTime = null;
         }
         
         /// <summary>
@@ -79,7 +79,7 @@ namespace BackendService
             }
             
             _recordingScenarioId = scenarioId;
-            _recordingStartTime = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+            _recordingStartTime = DateTime.UtcNow;
             _logger.LogInformation($"Avviata registrazione per lo scenario ID: {scenarioId} alle {_recordingStartTime}");
             return true;
         }
@@ -96,12 +96,19 @@ namespace BackendService
                 return false;
             }
             
-            // Non possiamo più calcolare la duration perché ora _recordingStartTime è una stringa
-            // Ma possiamo comunque loggare l'informazione
-            _logger.LogInformation($"Fermata registrazione per lo scenario {_recordingScenarioId}");
+            // Ora possiamo calcolare la duration perché _recordingStartTime è un DateTime
+            if (_recordingStartTime.HasValue)
+            {
+                var duration = (DateTime.UtcNow - _recordingStartTime.Value).TotalSeconds;
+                _logger.LogInformation($"Fermata registrazione per lo scenario {_recordingScenarioId} dopo {duration:F2} secondi");
+            }
+            else
+            {
+                _logger.LogInformation($"Fermata registrazione per lo scenario {_recordingScenarioId}");
+            }
             
             _recordingScenarioId = null;
-            _recordingStartTime = "";
+            _recordingStartTime = null;
             return true;
         }
         
@@ -118,9 +125,14 @@ namespace BackendService
         /// </returns>
         public async Task<object> GetRecordingStatusAsync()
         {
-            var now = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
-            // Non possiamo più calcolare la duration basata sulla differenza di tempo
+            var now = DateTime.UtcNow;
+            // Ora possiamo calcolare la duration perché _recordingStartTime è un DateTime
             double duration = 0;
+            
+            if (IsRecording && _recordingStartTime.HasValue)
+            {
+                duration = (now - _recordingStartTime.Value).TotalSeconds;
+            }
             
             // Carica il nome dello scenario se stiamo registrando
             string? scenarioName = null;
@@ -250,7 +262,7 @@ namespace BackendService
                 throw new ArgumentException("Il nome dello scenario non può essere vuoto", nameof(scenario));
             }
             
-            scenario.CreatedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+            scenario.CreatedAt = DateTime.UtcNow;
             
             _context.TestScenarios.Add(scenario);
             await _context.SaveChangesAsync();
@@ -667,7 +679,7 @@ namespace BackendService
                             StatusCode = (int)httpResponse.StatusCode,
                             Headers = string.Join("\n", httpResponse.Headers.Select(h => $"{h.Key}: {string.Join(", ", h.Value)}")),
                             Body = await httpResponse.Content.ReadAsStringAsync(),
-                            Timestamp = DateTime.UtcNow.ToString("o"),
+                            Timestamp = DateTime.UtcNow,
                             RequestId = request.Id
                         };
                         
@@ -685,7 +697,7 @@ namespace BackendService
                             StatusCode = 500,
                             Headers = "Content-Type: application/json",
                             Body = $"{{ \"error\": \"{ex.Message}\" }}",
-                            Timestamp = DateTime.UtcNow.ToString("o"),
+                            Timestamp = DateTime.UtcNow,
                             RequestId = request.Id
                         };
                         
