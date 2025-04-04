@@ -22,6 +22,9 @@ namespace BackendService
         private readonly int _port;
         private int? _recordingScenarioId;
 
+        // Proprietà per controllare se stiamo registrando
+        public bool IsRecording => _recordingScenarioId.HasValue;
+
         public InterceptorService(
             DatabaseContext dbContext, 
             ILogger<InterceptorService> logger, 
@@ -159,6 +162,55 @@ namespace BackendService
                     var proxyResponse = await _proxyService.ForwardRequestAsync(request, _proxyDomain);
                     await SendProxyResponseAsync(response, proxyResponse);
                     responseModel = proxyResponse;
+                    
+                    // Se stiamo registrando, salva la chiamata proxy nello scenario di test
+                    if (IsRecording && _recordingScenarioId.HasValue)
+                    {
+                        try 
+                        {
+                            // Registra lo scambio di proxy nel test scenario
+                            if (requestModel != null && responseModel != null)
+                            {
+                                // Crea oggetti HttpRequest/HttpResponse per la richiesta al server e la risposta
+                                BackendService.Models.HttpRequest? serverRequest = null;
+                                BackendService.Models.HttpResponse? serverResponse = null;
+                                
+                                // Se abbiamo fatto una chiamata al server, costruisci i modelli
+                                // Controllo se abbiamo una risposta proxy valida
+                                bool hasValidProxyResp = responseModel != null && _proxyDomain != null;
+                                
+                                if (hasValidProxyResp) 
+                                {
+                                    // Usa il modello della richiesta client come base per la richiesta server
+                                    serverRequest = new BackendService.Models.HttpRequest
+                                    {
+                                        Method = requestModel.Method,
+                                        Url = $"{_proxyDomain}{request.Url.PathAndQuery}",  // Usa l'URL del proxy
+                                        Headers = requestModel.Headers, // Utilizza gli stessi headers
+                                        Body = requestModel.Body,
+                                        Timestamp = DateTime.Now
+                                    };
+                                    
+                                    // Per la risposta, usa direttamente il responseModel già costruito
+                                    serverResponse = responseModel;
+                                }
+                                
+                                await _testScenarioService.RecordProxyExchangeAsync(
+                                    _recordingScenarioId.Value,
+                                    requestModel,
+                                    responseModel,
+                                    serverRequest,
+                                    serverResponse
+                                );
+                                
+                                _logger.LogInformation($"Registrato scambio proxy nello scenario {_recordingScenarioId.Value}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError($"Errore durante la registrazione dello scambio proxy: {ex.Message}");
+                        }
+                    }
                 }
                 // No rule or proxy - return 404
                 else

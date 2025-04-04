@@ -431,5 +431,106 @@ namespace BackendService.Controllers
                 return StatusCode(500, $"Si è verificato un errore durante l'esportazione dello scenario {id}: {ex.Message}");
             }
         }
+        
+        /// <summary>
+        /// Registra una chiamata proxy in uno scenario di test
+        /// </summary>
+        /// <param name="id">ID dello scenario</param>
+        /// <param name="data">Dati della chiamata proxy</param>
+        /// <returns>IDs degli step creati</returns>
+        [HttpPost("{id}/record-proxy-exchange")]
+        public async Task<ActionResult<object>> RecordProxyExchange(int id, [FromBody] ProxyExchangeRequest data)
+        {
+            try
+            {
+                if (data == null || data.ClientRequest == null || data.ClientResponse == null)
+                {
+                    return BadRequest("Dati della chiamata proxy incompleti");
+                }
+                
+                var scenario = await _testScenarioService.GetScenarioByIdAsync(id);
+                if (scenario == null)
+                {
+                    return NotFound($"Scenario di test con ID {id} non trovato");
+                }
+                
+                var (clientStepId, serverStepId) = await _testScenarioService.RecordProxyExchangeAsync(
+                    id, 
+                    data.ClientRequest, 
+                    data.ClientResponse,
+                    data.ServerRequest,
+                    data.ServerResponse
+                );
+                
+                return Ok(new { 
+                    scenarioId = id, 
+                    clientStepId = clientStepId, 
+                    serverStepId = serverStepId 
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Errore durante la registrazione della chiamata proxy nello scenario {id}: {ex.Message}");
+                return StatusCode(500, $"Si è verificato un errore durante la registrazione della chiamata proxy");
+            }
+        }
+        
+        /// <summary>
+        /// Parametrizza uno step di uno scenario di test
+        /// </summary>
+        /// <param name="id">ID dello step</param>
+        /// <param name="parameterizations">Dizionario delle parametrizzazioni</param>
+        /// <returns>Step aggiornato</returns>
+        [HttpPost("steps/{id}/parameterize")]
+        public async Task<ActionResult<ScenarioStep>> ParameterizeStep(int id, [FromBody] Dictionary<string, string> parameterizations)
+        {
+            try
+            {
+                if (parameterizations == null || parameterizations.Count == 0)
+                {
+                    return BadRequest("È necessario fornire almeno una parametrizzazione");
+                }
+                
+                var updatedStep = await _testScenarioService.ParameterizeStepAsync(id, parameterizations);
+                
+                if (updatedStep == null)
+                {
+                    return NotFound($"Step con ID {id} non trovato");
+                }
+                
+                return Ok(updatedStep);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Errore durante la parametrizzazione dello step {id}: {ex.Message}");
+                return StatusCode(500, $"Si è verificato un errore durante la parametrizzazione dello step");
+            }
+        }
     }
+}
+
+/// <summary>
+/// Classe che rappresenta i dati di una chiamata proxy da registrare
+/// </summary>
+public class ProxyExchangeRequest
+{
+    /// <summary>
+    /// La richiesta dal client
+    /// </summary>
+    public BackendService.Models.HttpRequest ClientRequest { get; set; }
+    
+    /// <summary>
+    /// La risposta inviata al client
+    /// </summary>
+    public BackendService.Models.HttpResponse ClientResponse { get; set; }
+    
+    /// <summary>
+    /// La richiesta inoltrata al server (opzionale, null per risposte generate da regole)
+    /// </summary>
+    public BackendService.Models.HttpRequest? ServerRequest { get; set; }
+    
+    /// <summary>
+    /// La risposta ricevuta dal server (opzionale, null per risposte generate da regole)
+    /// </summary>
+    public BackendService.Models.HttpResponse? ServerResponse { get; set; }
 }

@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace BackendService.Models
 {
@@ -15,6 +18,35 @@ namespace BackendService.Models
         public string? Description { get; set; }
         public bool IsActive { get; set; }
         
+        // Parametrizzazione
+        public string? ParameterizedUrl { get; set; }
+        public string? ParameterizedHeaders { get; set; }
+        public string? ParameterizedBody { get; set; }
+        
+        // Dizionario di parametri serializzato come JSON
+        public string? ParametersJson { get; set; }
+        
+        [JsonIgnore]
+        public Dictionary<string, string> Parameters
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(ParametersJson))
+                    return new Dictionary<string, string>();
+                
+                try 
+                {
+                    return JsonSerializer.Deserialize<Dictionary<string, string>>(ParametersJson) 
+                        ?? new Dictionary<string, string>();
+                }
+                catch 
+                {
+                    return new Dictionary<string, string>();
+                }
+            }
+            set => ParametersJson = JsonSerializer.Serialize(value);
+        }
+        
         // Navigation property back to the test scenario
         public TestScenario? TestScenario { get; set; }
         
@@ -24,5 +56,8 @@ namespace BackendService.Models
             get => TestScenarioId;
             set => TestScenarioId = value;
         }
+
+        // True se questo step è una richiesta dal client
+        public bool IsClientRequest { get; set; } = true;
     }
 }

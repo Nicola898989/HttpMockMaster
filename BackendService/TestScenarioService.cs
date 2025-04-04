@@ -7,6 +7,8 @@ using Microsoft.Extensions.Logging;
 using BackendService.Models;
 using System.Net.Http;
 using System.Text;
+using System.Text.RegularExpressions;
+using System.Text.Json;
 
 namespace BackendService
 {
@@ -779,6 +781,223 @@ namespace BackendService
             _logger.LogInformation($"Esportato scenario {scenarioId} in formato JSON");
             
             return sb.ToString();
+        }
+        
+        /// <summary>
+        /// Registra una richiesta HTTP come uno step di uno scenario di test
+        /// </summary>
+        /// <param name="scenarioId">ID dello scenario</param>
+        /// <param name="request">La richiesta HTTP da registrare</param>
+        /// <param name="clientRequest">Se true, è una richiesta dal client, altrimenti è dal server</param>
+        /// <returns>Lo step creato o null se lo scenario non esiste</returns>
+        public async Task<ScenarioStep?> AddRequestToScenarioAsync(int scenarioId, Models.HttpRequest request, bool clientRequest = true)
+        {
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+            
+            // Verifica che lo scenario esista
+            bool scenarioExists = await _context.TestScenarios
+                .AsNoTracking()
+                .AnyAsync(s => s.Id == scenarioId);
+                
+            if (!scenarioExists)
+            {
+                _logger.LogWarning($"Scenario di test non trovato per l'aggiunta della richiesta: {scenarioId}");
+                return null;
+            }
+            
+            // Determina il prossimo ordine disponibile
+            int nextOrder = 1;
+            
+            var maxOrder = await _context.ScenarioSteps
+                .Where(s => s.TestScenarioId == scenarioId)
+                .Select(s => (int?)s.Order)
+                .MaxAsync() ?? 0;
+                
+            nextOrder = maxOrder + 1;
+            
+            // Crea un nuovo step con questa richiesta
+            var step = new ScenarioStep
+            {
+                TestScenarioId = scenarioId,
+                Order = nextOrder,
+                HttpRequestId = request.Id,
+                HttpRequest = request,
+                Name = $"Richiesta {request.Method} {request.Url}",
+                Description = $"Registrata il {DateTime.Now}",
+                IsActive = true,
+                IsClientRequest = clientRequest,
+                ParameterizedUrl = request.Url,
+                ParameterizedHeaders = request.Headers,
+                ParameterizedBody = request.Body
+            };
+            
+            _context.ScenarioSteps.Add(step);
+            await _context.SaveChangesAsync();
+            
+            _logger.LogInformation($"Aggiunta richiesta come step {step.Id} (ordine {step.Order}) allo scenario {scenarioId}");
+            
+            return step;
+        }
+        
+        /// <summary>
+        /// Registra una risposta HTTP come parte di uno step esistente di uno scenario di test
+        /// </summary>
+        /// <param name="stepId">ID dello step a cui associare la risposta</param>
+        /// <param name="response">La risposta HTTP da registrare</param>
+        /// <returns>Lo step aggiornato o null se lo step non esiste</returns>
+        public async Task<ScenarioStep?> AddResponseToScenarioStepAsync(int stepId, Models.HttpResponse response)
+        {
+            if (response == null)
+            {
+                throw new ArgumentNullException(nameof(response));
+            }
+            
+            // Verifica che lo step esista
+            var step = await _context.ScenarioSteps
+                .FirstOrDefaultAsync(s => s.Id == stepId);
+                
+            if (step == null)
+            {
+                _logger.LogWarning($"Step di scenario non trovato per l'aggiunta della risposta: {stepId}");
+                return null;
+            }
+            
+            // Aggiorna lo step con questa risposta
+            step.HttpResponseId = response.Id;
+            step.Description = $"{step.Description} - Risposta {response.StatusCode} ricevuta";
+            
+            _context.Entry(step).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+            
+            _logger.LogInformation($"Aggiunta risposta {response.Id} allo step {stepId} dello scenario {step.TestScenarioId}");
+            
+            return step;
+        }
+        
+        /// <summary>
+        /// Registra una coppia richiesta/risposta da una chiamata proxy
+        /// </summary>
+        /// <param name="scenarioId">ID dello scenario</param>
+        /// <param name="clientRequest">La richiesta dal client</param>
+        /// <param name="clientResponse">La risposta al client</param>
+        /// <param name="serverRequest">La richiesta al server (può essere null per risposte da regole)</param>
+        /// <param name="serverResponse">La risposta dal server (può essere null per risposte da regole)</param>
+        /// <returns>Una tupla contenente gli ID degli step creati (clientStepId, serverStepId)</returns>
+        public async Task<(int? ClientStepId, int? ServerStepId)> RecordProxyExchangeAsync(
+            int scenarioId, 
+            Models.HttpRequest clientRequest, 
+            Models.HttpResponse clientResponse,
+            Models.HttpRequest? serverRequest = null,
+            Models.HttpResponse? serverResponse = null)
+        {
+            // Registra la richiesta dal client
+            var clientStep = await AddRequestToScenarioAsync(scenarioId, clientRequest, true);
+            if (clientStep == null)
+            {
+                return (null, null);
+            }
+            
+            // Aggiungi la risposta al client
+            await AddResponseToScenarioStepAsync(clientStep.Id, clientResponse);
+            
+            // Se c'è stata una richiesta al server, registrala come step separato
+            int? serverStepId = null;
+            if (serverRequest != null)
+            {
+                var serverStep = await AddRequestToScenarioAsync(scenarioId, serverRequest, false);
+                if (serverStep != null && serverResponse != null)
+                {
+                    await AddResponseToScenarioStepAsync(serverStep.Id, serverResponse);
+                    serverStepId = serverStep.Id;
+                }
+            }
+            
+            return (clientStep.Id, serverStepId);
+        }
+
+        /// <summary>
+        /// Parametrizza uno step di scenario, sostituendo valori concreti con variabili
+        /// </summary>
+        /// <param name="stepId">ID dello step da parametrizzare</param>
+        /// <param name="parameterizations">Dizionario di parametrizzazioni (chiave=valore da sostituire, valore=nome variabile)</param>
+        /// <returns>Lo step aggiornato o null se lo step non esiste</returns>
+        public async Task<ScenarioStep?> ParameterizeStepAsync(int stepId, Dictionary<string, string> parameterizations)
+        {
+            if (parameterizations == null || parameterizations.Count == 0)
+            {
+                throw new ArgumentException("Il dizionario di parametrizzazioni non può essere vuoto", nameof(parameterizations));
+            }
+            
+            // Verifica che lo step esista
+            var step = await _context.ScenarioSteps
+                .Include(s => s.HttpRequest)
+                .Include(s => s.HttpResponse)
+                .FirstOrDefaultAsync(s => s.Id == stepId);
+                
+            if (step == null)
+            {
+                _logger.LogWarning($"Step di scenario non trovato per la parametrizzazione: {stepId}");
+                return null;
+            }
+            
+            // Assicurati che i campi parametrizzati siano inizializzati
+            if (string.IsNullOrEmpty(step.ParameterizedUrl) && step.HttpRequest != null)
+            {
+                step.ParameterizedUrl = step.HttpRequest.Url;
+            }
+            
+            if (string.IsNullOrEmpty(step.ParameterizedHeaders) && step.HttpRequest != null)
+            {
+                step.ParameterizedHeaders = step.HttpRequest.Headers;
+            }
+            
+            if (string.IsNullOrEmpty(step.ParameterizedBody) && step.HttpRequest != null)
+            {
+                step.ParameterizedBody = step.HttpRequest.Body;
+            }
+            
+            // Esegui le sostituzioni
+            string paramUrl = step.ParameterizedUrl ?? string.Empty;
+            string paramHeaders = step.ParameterizedHeaders ?? string.Empty;
+            string paramBody = step.ParameterizedBody ?? string.Empty;
+            
+            // Prepara una copia del dizionario dei parametri esistenti
+            var currentParams = step.Parameters ?? new Dictionary<string, string>();
+            
+            foreach (var param in parameterizations)
+            {
+                if (string.IsNullOrEmpty(param.Key))
+                {
+                    continue;
+                }
+                
+                string pattern = Regex.Escape(param.Key);
+                string replacement = $"{{{{{param.Value}}}}}";
+                
+                // Sostituisci nelle versioni parametrizzate
+                paramUrl = Regex.Replace(paramUrl, pattern, replacement);
+                paramHeaders = Regex.Replace(paramHeaders, pattern, replacement);
+                paramBody = Regex.Replace(paramBody, pattern, replacement);
+                
+                // Aggiungi o aggiorna il parametro
+                currentParams[param.Value] = param.Key;
+            }
+            
+            // Aggiorna lo step
+            step.ParameterizedUrl = paramUrl;
+            step.ParameterizedHeaders = paramHeaders;
+            step.ParameterizedBody = paramBody;
+            step.Parameters = currentParams;
+            
+            _context.Entry(step).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+            
+            _logger.LogInformation($"Parametrizzato step {stepId} con {parameterizations.Count} variabili");
+            
+            return step;
         }
     }
 }
