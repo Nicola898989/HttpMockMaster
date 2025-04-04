@@ -6,11 +6,13 @@ using BackendService.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Http;
 
 namespace BackendService.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public class RequestsController : ControllerBase
     {
         private readonly DatabaseContext _dbContext;

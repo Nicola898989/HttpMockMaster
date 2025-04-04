@@ -28,7 +28,7 @@ namespace BackendService
                 .ToListAsync();
         }
 
-        public async Task<Rule> GetRuleByIdAsync(int id)
+        public async Task<Rule?> GetRuleByIdAsync(int id)
         {
             return await _dbContext.Rules
                 .Include(r => r.Response)
@@ -70,7 +70,7 @@ namespace BackendService
             }
         }
 
-        public async Task<Rule> FindMatchingRuleAsync(HttpListenerRequest request)
+        public async Task<Rule?> FindMatchingRuleAsync(HttpListenerRequest request)
         {
             var allRules = await _dbContext.Rules
                 .Include(r => r.Response)

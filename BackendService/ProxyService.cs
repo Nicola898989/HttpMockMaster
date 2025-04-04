@@ -17,7 +17,7 @@ namespace BackendService
         private readonly RuleService _ruleService;
         
         // Questo delegate ci permette di sostituire il metodo GetRequestBodyAsync nei test
-        public Func<HttpListenerRequest, Task<string>> GetRequestBodyMethodForTest { get; set; }
+        public Func<HttpListenerRequest, Task<string>>? GetRequestBodyMethodForTest { get; set; }
 
         public ProxyService(HttpClient httpClient, DatabaseContext dbContext, ILogger<ProxyService> logger, RuleService ruleService)
         {
@@ -25,7 +25,7 @@ namespace BackendService
             _dbContext = dbContext;
             _logger = logger;
             _ruleService = ruleService;
-            GetRequestBodyMethodForTest = null; // Verrà usato solo nei test
+            // GetRequestBodyMethodForTest è nullable, non serve inizializzarlo
         }
 
         public async Task<Models.HttpResponse> ForwardRequestAsync(HttpListenerRequest request, string targetDomain)
@@ -127,7 +127,7 @@ namespace BackendService
             // Se siamo in modalità test, usiamo il delegato configurato nel test
             if (GetRequestBodyMethodForTest != null)
             {
-                return await GetRequestBodyMethodForTest(request);
+                return await GetRequestBodyMethodForTest.Invoke(request);
             }
             
             if (!request.HasEntityBody)

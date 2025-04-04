@@ -24,21 +24,23 @@ namespace BackendService
         }
         
         // Start recording a scenario
-        public async Task StartRecordingAsync(int scenarioId)
+        public async Task<bool> StartRecordingAsync(int scenarioId)
         {
             _recordingScenarioId = scenarioId;
             _logger.LogInformation($"Started recording to scenario ID: {scenarioId}");
+            return true;
         }
         
         // Stop recording
-        public async Task StopRecordingAsync()
+        public async Task<bool> StopRecordingAsync()
         {
             _recordingScenarioId = null;
             _logger.LogInformation("Stopped recording to test scenario");
+            return true;
         }
         
         // Get current recording status
-        public object GetRecordingStatus()
+        public async Task<object> GetRecordingStatusAsync()
         {
             if (_recordingScenarioId.HasValue)
             {
@@ -68,7 +70,7 @@ namespace BackendService
         }
 
         // Get scenario by Id
-        public async Task<TestScenario> GetScenarioByIdAsync(int id)
+        public async Task<TestScenario?> GetScenarioByIdAsync(int id)
         {
             return await _context.TestScenarios
                 .Include(ts => ts.Steps)
@@ -137,7 +139,7 @@ namespace BackendService
         }
 
         // Add a step to a scenario
-        public async Task<ScenarioStep> AddStepToScenarioAsync(int scenarioId, ScenarioStep step)
+        public async Task<ScenarioStep?> AddStepToScenarioAsync(int scenarioId, ScenarioStep step)
         {
             var scenario = await _context.TestScenarios
                 .Include(ts => ts.Steps)
@@ -204,7 +206,7 @@ namespace BackendService
         }
 
         // Record a request/response pair to a scenario
-        public async Task<ScenarioStep> RecordRequestResponseAsync(int scenarioId, BackendService.Models.HttpRequest request, BackendService.Models.HttpResponse response)
+        public async Task<ScenarioStep?> RecordRequestResponseAsync(int scenarioId, BackendService.Models.HttpRequest request, BackendService.Models.HttpResponse response)
         {
             var scenario = await _context.TestScenarios.FindAsync(scenarioId);
             
@@ -215,8 +217,8 @@ namespace BackendService
             }
             
             // Save the request and response
-            _context.HttpRequests.Add(request);
-            _context.HttpResponses.Add(response);
+            _context.Requests.Add(request);
+            _context.Responses.Add(response);
             await _context.SaveChangesAsync();
             
             // Create a new step
@@ -234,16 +236,17 @@ namespace BackendService
         }
         
         // Record an interaction when recording is active
-        public async Task RecordInteractionAsync(BackendService.Models.HttpRequest request, BackendService.Models.HttpResponse response)
+        public async Task<bool> RecordInteractionAsync(BackendService.Models.HttpRequest request, BackendService.Models.HttpResponse response)
         {
             if (!IsRecording || !_recordingScenarioId.HasValue)
             {
                 _logger.LogInformation("Not recording, ignoring interaction");
-                return;
+                return false;
             }
             
             await RecordRequestResponseAsync(_recordingScenarioId.Value, request, response);
             _logger.LogInformation($"Recorded interaction to scenario {_recordingScenarioId.Value}");
+            return true;
         }
         
         // Replay a scenario
@@ -273,7 +276,7 @@ namespace BackendService
             if (scenario == null)
             {
                 _logger.LogWarning($"Test scenario not found for execution: {scenarioId}");
-                return null;
+                return new List<(BackendService.Models.HttpRequest, BackendService.Models.HttpResponse)>();
             }
             
             var results = new List<(BackendService.Models.HttpRequest, BackendService.Models.HttpResponse)>();
@@ -294,7 +297,11 @@ namespace BackendService
                 // TODO: We could actually execute the request here if needed
                 // For now, just return the stored request/response pairs
                 
-                results.Add((request, response));
+                // Verifica che la risposta non sia null
+                if (response != null)
+                {
+                    results.Add((request, response!));
+                }
                 
                 _logger.LogInformation($"Executed step {step.Id} of scenario {scenarioId}");
             }

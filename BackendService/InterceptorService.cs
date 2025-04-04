@@ -50,21 +50,21 @@ namespace BackendService
             return _proxyDomain;
         }
         
-        public void StartRecording(int scenarioId)
+        public async Task StartRecordingAsync(int scenarioId)
         {
             _recordingScenarioId = scenarioId;
-            _testScenarioService.StartRecording(scenarioId);
+            await _testScenarioService.StartRecordingAsync(scenarioId);
             _logger.LogInformation($"Started recording to test scenario with ID: {scenarioId}");
         }
         
-        public void StopRecording()
+        public async Task StopRecordingAsync()
         {
             _recordingScenarioId = null;
-            _testScenarioService.StopRecording();
+            await _testScenarioService.StopRecordingAsync();
             _logger.LogInformation("Stopped recording to test scenario");
         }
         
-        public bool IsRecording()
+        public async Task<bool> IsRecordingAsync()
         {
             return _recordingScenarioId.HasValue;
         }

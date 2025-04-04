@@ -2,11 +2,13 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Http;
 
 namespace BackendService.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public class ProxyController : ControllerBase
     {
         private readonly InterceptorService _interceptorService;

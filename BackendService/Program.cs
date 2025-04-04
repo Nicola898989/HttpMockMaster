@@ -190,7 +190,7 @@ namespace BackendService
             services.AddMemoryCache();
                 
             // HTTP Client for proxy with resilience
-            services.AddHttpClient(options => {
+            services.AddHttpClient("ProxyClient", options => {
                 options.Timeout = TimeSpan.FromSeconds(30);
             }).SetHandlerLifetime(TimeSpan.FromMinutes(5)); // Keep connections alive longer
             services.AddSingleton<HttpClient>();

@@ -5,12 +5,14 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Http;
 using BackendService.Models;
 
 namespace BackendService.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [ResponseCache(Duration = 15, Location = ResponseCacheLocation.Any, VaryByHeader = "Accept")]
     public class TestScenariosController : ControllerBase
     {
         private readonly TestScenarioService _testScenarioService;
@@ -256,7 +258,7 @@ namespace BackendService.Controllers
                 
                 // Start recording in both services
                 await _testScenarioService.StartRecordingAsync(id);
-                _interceptorService.StartRecording(id);
+                await _interceptorService.StartRecordingAsync(id);
                 
                 return Ok(new { message = $"Started recording to scenario '{scenario.Name}' (ID: {id})" });
             }
@@ -275,7 +277,7 @@ namespace BackendService.Controllers
             {
                 // Stop recording in both services
                 await _testScenarioService.StopRecordingAsync();
-                _interceptorService.StopRecording();
+                await _interceptorService.StopRecordingAsync();
                 
                 return Ok(new { message = "Recording stopped" });
             }
@@ -288,12 +290,12 @@ namespace BackendService.Controllers
         
         // GET: api/TestScenarios/record/status
         [HttpGet("record/status")]
-        public IActionResult GetRecordingStatus()
+        public async Task<IActionResult> GetRecordingStatusAsync()
         {
             try
             {
                 // Get status from TestScenarioService, which is the master source of truth
-                var status = _testScenarioService.GetRecordingStatus();
+                var status = await _testScenarioService.GetRecordingStatusAsync();
                 
                 // Use the IsRecording property
                 var isRecording = _testScenarioService.IsRecording;
@@ -313,7 +315,7 @@ namespace BackendService.Controllers
                 {
                     isRecording = isRecording,
                     scenarioId = scenarioId,
-                    interceptorIsRecording = _interceptorService.IsRecording()
+                    interceptorIsRecording = await _interceptorService.IsRecordingAsync()
                 };
                 
                 return Ok(result);

@@ -4,11 +4,13 @@ using System.Threading.Tasks;
 using BackendService.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Http;
 
 namespace BackendService.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [ResponseCache(Duration = 30, Location = ResponseCacheLocation.Any, VaryByHeader = "Accept")]
     public class RulesController : ControllerBase
     {
         private readonly RuleService _ruleService;
