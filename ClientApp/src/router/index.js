@@ -3,6 +3,7 @@ import RequestsView from '../views/RequestsView.vue'
 import RulesView from '../views/RulesView.vue'
 import ProxyView from '../views/ProxyView.vue'
 import SettingsView from '../views/SettingsView.vue'
+import TopologyView from '../views/TopologyView.vue'
 
 const routes = [
   {
@@ -23,6 +24,11 @@ const routes = [
     path: '/proxy',
     name: 'Proxy',
     component: ProxyView
+  },
+  {
+    path: '/topology',
+    name: 'Topology',
+    component: TopologyView
   },
   {
     path: '/settings',

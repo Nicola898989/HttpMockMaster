@@ -2,6 +2,7 @@ import { createStore } from 'vuex'
 import requestsModule from './modules/requests'
 import rulesModule from './modules/rules'
 import proxyModule from './modules/proxy'
+import topologyModule from './modules/topology'
 
 export default createStore({
   state: {
@@ -33,6 +34,7 @@ export default createStore({
   modules: {
     requests: requestsModule,
     rules: rulesModule,
-    proxy: proxyModule
+    proxy: proxyModule,
+    topology: topologyModule
   }
 })

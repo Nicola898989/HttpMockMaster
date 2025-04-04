@@ -32,6 +32,12 @@
             </router-link>
           </li>
           <li class="nav-item">
+            <router-link class="nav-link" to="/topology" active-class="active">
+              <i data-feather="share-2" class="feather-icon"></i>
+              Topology
+            </router-link>
+          </li>
+          <li class="nav-item">
             <router-link class="nav-link" to="/settings" active-class="active">
               <i data-feather="settings" class="feather-icon"></i>
               Settings
