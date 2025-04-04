@@ -56,6 +56,13 @@
       </div>
     </div>
     
+    <!-- Request Flow Visualization -->
+    <RequestFlowVisualization 
+      v-if="currentRequest"
+      :request="currentRequest" 
+      :matched-rule="matchedRule"
+    />
+    
     <div class="row">
       <!-- Requests List -->
       <div class="col-md-5">
@@ -139,13 +146,15 @@ import { mapState, mapActions } from 'vuex'
 import { Modal } from 'bootstrap'
 import RequestsList from '../components/RequestsList.vue'
 import RequestDetail from '../components/RequestDetail.vue'
+import RequestFlowVisualization from '../components/RequestFlowVisualization.vue'
 
 export default {
   name: 'RequestsView',
   
   components: {
     RequestsList,
-    RequestDetail
+    RequestDetail,
+    RequestFlowVisualization
   },
   
   data() {
@@ -175,6 +184,23 @@ export default {
     
     totalPages() {
       return this.pagination.totalPages
+    },
+    
+    matchedRule() {
+      // In futuro, questa proprietà verrà popolata dal server quando una richiesta
+      // viene abbinata a una regola. Per ora, creiamo una regola di esempio se la richiesta
+      // è stata intercettata (non è proxied)
+      if (this.currentRequest && !this.currentRequest.isProxied) {
+        // Simuliamo una regola abbinata solo per richieste con status 200 OK
+        if (this.currentResponse && this.currentResponse.statusCode >= 200 && this.currentResponse.statusCode < 300) {
+          return {
+            id: 'sample-rule',
+            name: `Rule for ${this.currentRequest.method} ${this.getPathFromUrl(this.currentRequest.url)}`,
+            isActive: true
+          }
+        }
+      }
+      return null
     },
     
     // Generate pagination array with ellipsis
@@ -271,18 +297,22 @@ export default {
       this.$store.dispatch('requests/clearFilters')
     },
     
+    getPathFromUrl(url) {
+      if (!url) return ''
+      
+      try {
+        const urlObj = new URL(url)
+        return urlObj.pathname
+      } catch (e) {
+        return url
+      }
+    },
+    
     createRuleFromRequest() {
       if (!this.currentRequest) return
       
       const { url, method } = this.currentRequest
-      let pathPattern = ''
-      
-      try {
-        const urlObj = new URL(url)
-        pathPattern = urlObj.pathname
-      } catch (e) {
-        pathPattern = url
-      }
+      let pathPattern = this.getPathFromUrl(url)
       
       // Create rule template
       const rule = {
