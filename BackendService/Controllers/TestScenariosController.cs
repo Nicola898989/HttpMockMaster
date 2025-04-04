@@ -243,7 +243,11 @@ namespace BackendService.Controllers
             }
         }
         
-        // POST: api/TestScenarios/5/record/start
+        /// <summary>
+        /// Starts recording HTTP traffic to a specific test scenario.
+        /// </summary>
+        /// <param name="id">ID of the test scenario to record to</param>
+        /// <returns>Success or error message</returns>
         [HttpPost("{id}/record/start")]
         public async Task<IActionResult> StartRecording(int id)
         {
@@ -256,9 +260,21 @@ namespace BackendService.Controllers
                     return NotFound($"Test scenario with ID {id} was not found");
                 }
                 
-                // Start recording in both services
-                await _testScenarioService.StartRecordingAsync(id);
-                await _interceptorService.StartRecordingAsync(id);
+                // Start recording in TestScenarioService
+                bool testScenarioResult = await _testScenarioService.StartRecordingAsync(id);
+                if (!testScenarioResult)
+                {
+                    return StatusCode(500, $"Failed to start recording in test scenario service for scenario {id}");
+                }
+                
+                // Start recording in InterceptorService
+                bool interceptorResult = await _interceptorService.StartRecordingAsync(id);
+                if (!interceptorResult)
+                {
+                    // If interceptor failed but test scenario succeeded, try to stop test scenario recording
+                    await _testScenarioService.StopRecordingAsync();
+                    return StatusCode(500, $"Failed to start recording in interceptor service for scenario {id}");
+                }
                 
                 return Ok(new { message = $"Started recording to scenario '{scenario.Name}' (ID: {id})" });
             }
@@ -269,17 +285,34 @@ namespace BackendService.Controllers
             }
         }
         
-        // POST: api/TestScenarios/record/stop
+        /// <summary>
+        /// Stops the current recording of HTTP traffic to a test scenario.
+        /// </summary>
+        /// <returns>Success or error message</returns>
         [HttpPost("record/stop")]
         public async Task<IActionResult> StopRecording()
         {
             try
             {
-                // Stop recording in both services
-                await _testScenarioService.StopRecordingAsync();
-                await _interceptorService.StopRecordingAsync();
+                // Stop recording in both services, and track results
+                bool testScenarioResult = await _testScenarioService.StopRecordingAsync();
+                bool interceptorResult = await _interceptorService.StopRecordingAsync();
                 
-                return Ok(new { message = "Recording stopped" });
+                // If either failed, return a warning but don't throw exception
+                if (!testScenarioResult || !interceptorResult)
+                {
+                    string failureMessage = !testScenarioResult 
+                        ? "Failed to stop recording in test scenario service. " 
+                        : "";
+                    failureMessage += !interceptorResult 
+                        ? "Failed to stop recording in interceptor service." 
+                        : "";
+                    
+                    _logger.LogWarning(failureMessage);
+                    return StatusCode(207, new { message = "Recording partially stopped", details = failureMessage });
+                }
+                
+                return Ok(new { message = "Recording stopped successfully" });
             }
             catch (Exception ex)
             {
@@ -288,34 +321,29 @@ namespace BackendService.Controllers
             }
         }
         
-        // GET: api/TestScenarios/record/status
+        /// <summary>
+        /// Gets the current recording status, including whether recording is active
+        /// and which scenario is being recorded to.
+        /// </summary>
+        /// <returns>Recording status information</returns>
         [HttpGet("record/status")]
         public async Task<IActionResult> GetRecordingStatusAsync()
         {
             try
             {
-                // Get status from TestScenarioService, which is the master source of truth
-                var status = await _testScenarioService.GetRecordingStatusAsync();
+                // Get status objects from both services
+                dynamic testScenarioStatus = await _testScenarioService.GetRecordingStatusAsync();
+                bool interceptorIsRecording = await _interceptorService.IsRecordingAsync();
                 
-                // Use the IsRecording property
-                var isRecording = _testScenarioService.IsRecording;
-                
-                // Extract the scenarioId from the status object
-                var scenarioId = (int?)null;
-                
-                // Extract properties using reflection or dynamic casting
-                var statusType = status.GetType();
-                var scenarioProp = statusType.GetProperty("scenarioId");
-                
-                if (scenarioProp != null)
-                    scenarioId = scenarioProp.GetValue(status) as int?;
-                
-                // Add information about the interceptor
+                // Create a clean response object with properties from both services
                 var result = new
                 {
-                    isRecording = isRecording,
-                    scenarioId = scenarioId,
-                    interceptorIsRecording = await _interceptorService.IsRecordingAsync()
+                    isRecording = _testScenarioService.IsRecording,
+                    scenarioId = _testScenarioService.RecordingScenarioId,
+                    interceptorIsRecording = interceptorIsRecording,
+                    
+                    // Add the timestamp for when the status was retrieved
+                    timestamp = DateTime.UtcNow
                 };
                 
                 return Ok(result);

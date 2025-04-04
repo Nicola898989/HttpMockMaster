@@ -72,9 +72,12 @@ namespace BackendService
 
         public async Task<Rule?> FindMatchingRuleAsync(HttpListenerRequest request)
         {
+            // Load rules without directly accessing 'UrlPattern' in the LINQ query
             var allRules = await _dbContext.Rules
                 .Include(r => r.Response)
                 .OrderByDescending(r => r.Priority)
+                .AsNoTracking()  // Per migliorare le prestazioni quando facciamo solo lettura
+                .Where(r => r.IsActive)  // Filtra solo regole attive
                 .ToListAsync();
 
             foreach (var rule in allRules)

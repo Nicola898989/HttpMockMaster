@@ -14,7 +14,16 @@ namespace BackendService
         private readonly ILogger<TestScenarioService> _logger;
         private int? _recordingScenarioId;
 
+        /// <summary>
+        /// Gets whether recording is currently active.
+        /// </summary>
         public bool IsRecording => _recordingScenarioId.HasValue;
+        
+        /// <summary>
+        /// Gets the ID of the scenario currently being recorded to, or null if not recording.
+        /// This property is exposed publicly to eliminate the need for reflection or dynamic objects.
+        /// </summary>
+        public int? RecordingScenarioId => _recordingScenarioId;
 
         public TestScenarioService(DatabaseContext context, ILogger<TestScenarioService> logger)
         {
@@ -39,25 +48,27 @@ namespace BackendService
             return true;
         }
         
-        // Get current recording status
+        /// <summary>
+        /// Gets the current recording status asynchronously
+        /// </summary>
+        /// <returns>
+        /// Task that resolves to an anonymous object containing:
+        /// - isRecording: Boolean indicating if recording is active
+        /// - scenarioId: ID of scenario being recorded, or null if not recording
+        /// </returns>
         public async Task<object> GetRecordingStatusAsync()
         {
-            if (_recordingScenarioId.HasValue)
-            {
-                return new 
-                { 
-                    isRecording = true, 
-                    scenarioId = _recordingScenarioId.Value 
-                };
-            }
-            else
-            {
-                return new 
-                { 
-                    isRecording = false, 
-                    scenarioId = (int?)null 
-                };
-            }
+            // This method is marked as async for API consistency, even though it doesn't
+            // perform asynchronous operations. This is a common practice for maintaining
+            // a consistent async API surface.
+            
+            // We can now use the public properties directly
+            return new 
+            { 
+                isRecording = IsRecording, 
+                scenarioId = RecordingScenarioId,
+                timestamp = DateTime.UtcNow
+            };
         }
 
         // Get all scenarios

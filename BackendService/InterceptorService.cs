@@ -50,23 +50,42 @@ namespace BackendService
             return _proxyDomain;
         }
         
-        public async Task StartRecordingAsync(int scenarioId)
+        public async Task<bool> StartRecordingAsync(int scenarioId)
         {
-            _recordingScenarioId = scenarioId;
-            await _testScenarioService.StartRecordingAsync(scenarioId);
-            _logger.LogInformation($"Started recording to test scenario with ID: {scenarioId}");
+            try
+            {
+                _recordingScenarioId = scenarioId;
+                await _testScenarioService.StartRecordingAsync(scenarioId);
+                _logger.LogInformation($"Started recording to test scenario with ID: {scenarioId}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to start recording to scenario ID: {scenarioId}");
+                return false;
+            }
         }
         
-        public async Task StopRecordingAsync()
+        public async Task<bool> StopRecordingAsync()
         {
-            _recordingScenarioId = null;
-            await _testScenarioService.StopRecordingAsync();
-            _logger.LogInformation("Stopped recording to test scenario");
+            try 
+            {
+                _recordingScenarioId = null;
+                await _testScenarioService.StopRecordingAsync();
+                _logger.LogInformation("Stopped recording to test scenario");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to stop recording");
+                return false;
+            }
         }
         
-        public async Task<bool> IsRecordingAsync()
+        public Task<bool> IsRecordingAsync()
         {
-            return _recordingScenarioId.HasValue;
+            // Since this is a simple property check, we can just return a completed task
+            return Task.FromResult(_recordingScenarioId.HasValue);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
