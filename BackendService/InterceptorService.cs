@@ -273,15 +273,23 @@ namespace BackendService
                                     serverResponse = responseModel;
                                 }
                                 
-                                await _testScenarioService.RecordProxyExchangeAsync(
-                                    _recordingScenarioId.Value,
-                                    requestModel,
-                                    responseModel,
-                                    serverRequest,
-                                    serverResponse
-                                );
-                                
-                                _logger.LogInformation($"Registrato scambio proxy nello scenario {_recordingScenarioId.Value}");
+                                // Assicurati che responseModel non sia null prima di chiamare RecordProxyExchangeAsync
+                                if (responseModel != null)
+                                {
+                                    await _testScenarioService.RecordProxyExchangeAsync(
+                                        _recordingScenarioId.Value,
+                                        requestModel,
+                                        responseModel,
+                                        serverRequest,
+                                        serverResponse
+                                    );
+                                    
+                                    _logger.LogInformation($"Registrato scambio proxy nello scenario {_recordingScenarioId.Value}");
+                                }
+                                else
+                                {
+                                    _logger.LogWarning("Impossibile registrare lo scambio proxy: responseModel è null");
+                                }
                             }
                         }
                         catch (Exception ex)
@@ -312,7 +320,7 @@ namespace BackendService
                 }
                 
                 // If recording to a test scenario, store this request/response pair
-                if (_recordingScenarioId.HasValue && responseModel != null)
+                if (_recordingScenarioId.HasValue && responseModel != null && requestModel != null)
                 {
                     try 
                     {

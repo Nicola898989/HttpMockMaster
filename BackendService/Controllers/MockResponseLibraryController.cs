@@ -193,11 +193,11 @@ namespace BackendService.Controllers
         /// <summary>
         /// Nome del template da utilizzare
         /// </summary>
-        public string TemplateName { get; set; }
+        public string TemplateName { get; set; } = string.Empty;
         
         /// <summary>
         /// Personalizzazioni da applicare al template
         /// </summary>
-        public ResponseCustomization Customization { get; set; }
+        public ResponseCustomization Customization { get; set; } = new ResponseCustomization();
     }
 }

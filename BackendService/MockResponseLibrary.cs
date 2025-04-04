@@ -22,8 +22,43 @@ namespace BackendService
             _dbContext = dbContext;
             _logger = logger;
             
-            // Inizializza i template predefiniti nel database se non esistono
-            EnsurePredefinedTemplatesAsync().Wait();
+            try
+            {
+                // Verifica se la tabella ResponseTemplates esiste
+                bool tableExists = TableExists();
+                
+                if (tableExists)
+                {
+                    // Inizializza i template predefiniti nel database se non esistono e se la tabella esiste
+                    EnsurePredefinedTemplatesAsync().Wait();
+                }
+                else
+                {
+                    _logger.LogWarning("La tabella ResponseTemplates non esiste nel database. Saltando l'inizializzazione dei template.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Errore durante l'inizializzazione della libreria di risposte mock");
+                // Non propagare l'eccezione, permetti all'applicazione di continuare
+            }
+        }
+        
+        /// <summary>
+        /// Verifica se la tabella ResponseTemplates esiste nel database
+        /// </summary>
+        private bool TableExists()
+        {
+            try
+            {
+                // Esegue una query che restituisce 0 record, ma fallirà se la tabella non esiste
+                var count = _dbContext.ResponseTemplates.Count();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
         
         /// <summary>
@@ -31,6 +66,13 @@ namespace BackendService
         /// </summary>
         public async Task<List<ResponseTemplate>> GetAvailableTemplatesAsync()
         {
+            // Verifica prima se la tabella esiste
+            if (!TableExists())
+            {
+                _logger.LogWarning("La tabella ResponseTemplates non esiste nel database. Restituendo solo template predefiniti in memoria.");
+                return GetPredefinedResponseTemplates().ToList();
+            }
+            
             try
             {
                 return await _dbContext.ResponseTemplates
@@ -55,8 +97,27 @@ namespace BackendService
             string templateName, 
             ResponseCustomization customization = null)
         {
-            var template = await _dbContext.ResponseTemplates
-                .FirstOrDefaultAsync(t => t.Name == templateName);
+            ResponseTemplate template = null;
+            
+            // Verifica prima se la tabella esiste
+            if (!TableExists())
+            {
+                _logger.LogWarning("La tabella ResponseTemplates non esiste nel database. Cercando nei template predefiniti in memoria.");
+                template = GetPredefinedResponseTemplates().FirstOrDefault(t => t.Name == templateName);
+            }
+            else
+            {
+                try
+                {
+                    template = await _dbContext.ResponseTemplates
+                        .FirstOrDefaultAsync(t => t.Name == templateName);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Errore nel recupero del template '{templateName}' dal database. Cercando nei template predefiniti in memoria.");
+                    template = GetPredefinedResponseTemplates().FirstOrDefault(t => t.Name == templateName);
+                }
+            }
                 
             if (template == null)
             {
@@ -134,35 +195,49 @@ namespace BackendService
                 throw new ArgumentException("Il nome del template è obbligatorio", nameof(template));
             }
             
-            var existing = await _dbContext.ResponseTemplates
-                .FirstOrDefaultAsync(t => t.Name == template.Name);
-                
-            if (existing != null)
+            // Verifica prima se la tabella esiste
+            if (!TableExists())
             {
-                // Non consentire la modifica dei template di sistema
-                if (existing.IsSystem)
-                {
-                    throw new InvalidOperationException($"Il template '{template.Name}' è un template di sistema e non può essere modificato");
-                }
-                
-                // Aggiorna il template esistente
-                existing.Description = template.Description;
-                existing.StatusCode = template.StatusCode;
-                existing.Headers = template.Headers;
-                existing.Body = template.Body;
-                existing.UpdatedAt = DateTime.UtcNow;
-                existing.Category = template.Category;
-            }
-            else
-            {
-                // Crea un nuovo template
-                template.IsSystem = false;
-                template.CreatedAt = DateTime.UtcNow;
-                
-                _dbContext.ResponseTemplates.Add(template);
+                throw new InvalidOperationException("La tabella ResponseTemplates non esiste nel database. Impossibile salvare il template.");
             }
             
-            await _dbContext.SaveChangesAsync();
+            try
+            {
+                var existing = await _dbContext.ResponseTemplates
+                    .FirstOrDefaultAsync(t => t.Name == template.Name);
+                    
+                if (existing != null)
+                {
+                    // Non consentire la modifica dei template di sistema
+                    if (existing.IsSystem)
+                    {
+                        throw new InvalidOperationException($"Il template '{template.Name}' è un template di sistema e non può essere modificato");
+                    }
+                    
+                    // Aggiorna il template esistente
+                    existing.Description = template.Description;
+                    existing.StatusCode = template.StatusCode;
+                    existing.Headers = template.Headers;
+                    existing.Body = template.Body;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                    existing.Category = template.Category;
+                }
+                else
+                {
+                    // Crea un nuovo template
+                    template.IsSystem = false;
+                    template.CreatedAt = DateTime.UtcNow;
+                    
+                    _dbContext.ResponseTemplates.Add(template);
+                }
+                
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Errore nel salvare il template '{template.Name}'");
+                throw new InvalidOperationException($"Errore nel salvare il template: {ex.Message}", ex);
+            }
         }
         
         /// <summary>
@@ -170,22 +245,36 @@ namespace BackendService
         /// </summary>
         public async Task DeleteCustomTemplateAsync(string templateName)
         {
-            var template = await _dbContext.ResponseTemplates
-                .FirstOrDefaultAsync(t => t.Name == templateName);
+            // Verifica prima se la tabella esiste
+            if (!TableExists())
+            {
+                throw new InvalidOperationException("La tabella ResponseTemplates non esiste nel database. Impossibile eliminare il template.");
+            }
+            
+            try
+            {
+                var template = await _dbContext.ResponseTemplates
+                    .FirstOrDefaultAsync(t => t.Name == templateName);
+                    
+                if (template == null)
+                {
+                    return;
+                }
                 
-            if (template == null)
-            {
-                return;
+                // Non consentire l'eliminazione dei template di sistema
+                if (template.IsSystem)
+                {
+                    throw new InvalidOperationException($"Il template '{templateName}' è un template di sistema e non può essere eliminato");
+                }
+                
+                _dbContext.ResponseTemplates.Remove(template);
+                await _dbContext.SaveChangesAsync();
             }
-            
-            // Non consentire l'eliminazione dei template di sistema
-            if (template.IsSystem)
+            catch (Exception ex)
             {
-                throw new InvalidOperationException($"Il template '{templateName}' è un template di sistema e non può essere eliminato");
+                _logger.LogError(ex, $"Errore nell'eliminazione del template '{templateName}'");
+                throw new InvalidOperationException($"Errore nell'eliminazione del template: {ex.Message}", ex);
             }
-            
-            _dbContext.ResponseTemplates.Remove(template);
-            await _dbContext.SaveChangesAsync();
         }
         
         /// <summary>
@@ -234,7 +323,10 @@ namespace BackendService
                     StatusCode = 200,
                     Headers = "Content-Type: application/json",
                     Body = "{\n  \"status\": \"success\",\n  \"message\": \"{{message}}\",\n  \"data\": {\n    \"id\": \"{{id}}\"\n  }\n}",
-                    Category = "Success"
+                    Category = "Success",
+                    IsSystem = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = null
                 },
                 new ResponseTemplate
                 {
@@ -243,7 +335,10 @@ namespace BackendService
                     StatusCode = 201,
                     Headers = "Content-Type: application/json\nLocation: {{location}}",
                     Body = "{\n  \"status\": \"created\",\n  \"id\": \"{{id}}\",\n  \"message\": \"Risorsa creata con successo\"\n}",
-                    Category = "Success"
+                    Category = "Success",
+                    IsSystem = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = null
                 },
                 new ResponseTemplate
                 {
@@ -252,7 +347,10 @@ namespace BackendService
                     StatusCode = 202,
                     Headers = "Content-Type: application/json",
                     Body = "{\n  \"status\": \"accepted\",\n  \"message\": \"La richiesta è stata accettata per l'elaborazione\",\n  \"jobId\": \"{{jobId}}\",\n  \"statusUrl\": \"{{statusUrl}}\"\n}",
-                    Category = "Success"
+                    Category = "Success",
+                    IsSystem = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = null
                 },
                 new ResponseTemplate
                 {
@@ -261,7 +359,10 @@ namespace BackendService
                     StatusCode = 204,
                     Headers = "",
                     Body = "",
-                    Category = "Success"
+                    Category = "Success",
+                    IsSystem = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = null
                 },
                 
                 // Template 4xx Client Error
@@ -272,7 +373,10 @@ namespace BackendService
                     StatusCode = 400,
                     Headers = "Content-Type: application/json",
                     Body = "{\n  \"error\": \"bad_request\",\n  \"message\": \"{{message}}\",\n  \"details\": \"{{details}}\"\n}",
-                    Category = "Client Error"
+                    Category = "Client Error",
+                    IsSystem = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = null
                 },
                 new ResponseTemplate
                 {
@@ -281,7 +385,10 @@ namespace BackendService
                     StatusCode = 401,
                     Headers = "Content-Type: application/json\nWWW-Authenticate: Bearer",
                     Body = "{\n  \"error\": \"unauthorized\",\n  \"message\": \"Autenticazione richiesta\"\n}",
-                    Category = "Client Error"
+                    Category = "Client Error",
+                    IsSystem = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = null
                 },
                 new ResponseTemplate
                 {
@@ -290,7 +397,10 @@ namespace BackendService
                     StatusCode = 403,
                     Headers = "Content-Type: application/json",
                     Body = "{\n  \"error\": \"forbidden\",\n  \"message\": \"Non hai i permessi necessari per accedere a questa risorsa\"\n}",
-                    Category = "Client Error"
+                    Category = "Client Error",
+                    IsSystem = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = null
                 },
                 new ResponseTemplate
                 {
@@ -299,7 +409,10 @@ namespace BackendService
                     StatusCode = 404,
                     Headers = "Content-Type: application/json",
                     Body = "{\n  \"error\": \"not_found\",\n  \"message\": \"La risorsa richiesta non esiste\",\n  \"resource\": \"{{resource}}\"\n}",
-                    Category = "Client Error"
+                    Category = "Client Error",
+                    IsSystem = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = null
                 },
                 new ResponseTemplate
                 {
@@ -308,7 +421,10 @@ namespace BackendService
                     StatusCode = 405,
                     Headers = "Content-Type: application/json\nAllow: {{allowed_methods}}",
                     Body = "{\n  \"error\": \"method_not_allowed\",\n  \"message\": \"Il metodo {{method}} non è supportato per questa risorsa\",\n  \"allowed_methods\": \"{{allowed_methods}}\"\n}",
-                    Category = "Client Error"
+                    Category = "Client Error",
+                    IsSystem = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = null
                 },
                 new ResponseTemplate
                 {
@@ -317,7 +433,10 @@ namespace BackendService
                     StatusCode = 409,
                     Headers = "Content-Type: application/json",
                     Body = "{\n  \"error\": \"conflict\",\n  \"message\": \"{{message}}\",\n  \"details\": \"{{details}}\"\n}",
-                    Category = "Client Error"
+                    Category = "Client Error",
+                    IsSystem = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = null
                 },
                 new ResponseTemplate
                 {
@@ -326,7 +445,10 @@ namespace BackendService
                     StatusCode = 429,
                     Headers = "Content-Type: application/json\nRetry-After: {{retry_after}}",
                     Body = "{\n  \"error\": \"rate_limit_exceeded\",\n  \"message\": \"Hai superato il limite di richieste consentito\",\n  \"retry_after\": {{retry_after}}\n}",
-                    Category = "Client Error"
+                    Category = "Client Error",
+                    IsSystem = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = null
                 },
                 
                 // Template 5xx Server Error
@@ -337,7 +459,10 @@ namespace BackendService
                     StatusCode = 500,
                     Headers = "Content-Type: application/json",
                     Body = "{\n  \"error\": \"internal_server_error\",\n  \"message\": \"Si è verificato un errore interno del server\",\n  \"reference\": \"{{reference}}\"\n}",
-                    Category = "Server Error"
+                    Category = "Server Error",
+                    IsSystem = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = null
                 },
                 new ResponseTemplate
                 {
@@ -346,7 +471,10 @@ namespace BackendService
                     StatusCode = 503,
                     Headers = "Content-Type: application/json\nRetry-After: {{retry_after}}",
                     Body = "{\n  \"error\": \"service_unavailable\",\n  \"message\": \"Il servizio è temporaneamente non disponibile\",\n  \"retry_after\": {{retry_after}}\n}",
-                    Category = "Server Error"
+                    Category = "Server Error",
+                    IsSystem = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = null
                 },
                 
                 // Altri formati
@@ -357,7 +485,10 @@ namespace BackendService
                     StatusCode = 200,
                     Headers = "Content-Type: application/xml",
                     Body = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<response>\n  <status>success</status>\n  <message>{{message}}</message>\n  <data>\n    <id>{{id}}</id>\n  </data>\n</response>",
-                    Category = "Other Formats"
+                    Category = "Other Formats",
+                    IsSystem = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = null
                 },
                 new ResponseTemplate
                 {
@@ -366,7 +497,10 @@ namespace BackendService
                     StatusCode = 200,
                     Headers = "Content-Type: text/plain",
                     Body = "{{message}}",
-                    Category = "Other Formats"
+                    Category = "Other Formats",
+                    IsSystem = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = null
                 },
                 new ResponseTemplate
                 {
@@ -375,7 +509,10 @@ namespace BackendService
                     StatusCode = 200,
                     Headers = "Content-Type: {{content_type}}\nContent-Disposition: attachment; filename=\"{{filename}}\"",
                     Body = "{{binary_data_placeholder}}",
-                    Category = "Other Formats"
+                    Category = "Other Formats",
+                    IsSystem = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = null
                 },
                 new ResponseTemplate
                 {
@@ -384,7 +521,10 @@ namespace BackendService
                     StatusCode = 200,
                     Headers = "Content-Type: text/html",
                     Body = "<!DOCTYPE html>\n<html>\n<head>\n  <title>{{title}}</title>\n</head>\n<body>\n  <h1>{{heading}}</h1>\n  <p>{{content}}</p>\n</body>\n</html>",
-                    Category = "Other Formats"
+                    Category = "Other Formats",
+                    IsSystem = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = null
                 }
             };
         }

@@ -51,7 +51,7 @@ namespace BackendService
                     r.Headers,
                     r.Body,
                     ContentType = ExtractContentType(r.Headers),
-                    Date = DateTime.TryParse(r.Timestamp, out var timestamp) ? timestamp : DateTime.UtcNow,
+                    Date = r.Timestamp,
                     r.IsProxied,
                     ResponseStatusCode = r.Response?.StatusCode,
                     ResponseHeaders = r.Response?.Headers,
@@ -94,7 +94,7 @@ namespace BackendService
                 foreach (var request in requests)
                 {
                     var statusCode = request.Response != null ? request.Response.StatusCode.ToString() : "N/A";
-                    var timestamp = DateTime.TryParse(request.Timestamp, out var parsedDate) ? parsedDate : DateTime.UtcNow;
+                    var timestamp = request.Timestamp;
                     var date = timestamp.ToString("yyyy-MM-dd HH:mm:ss");
                     var urlHost = ExtractHost(request.Url);
                     var path = EscapeCsvField(ExtractPath(request.Url) ?? "");
@@ -144,7 +144,7 @@ namespace BackendService
                         request.Headers,
                         request.Body,
                         ContentType = ExtractContentType(request.Headers),
-                        Date = DateTime.TryParse(request.Timestamp, out var parsedDate) ? parsedDate : DateTime.UtcNow,
+                        Date = request.Timestamp,
                         request.IsProxied
                     },
                     response = request.Response != null ? new
@@ -154,7 +154,7 @@ namespace BackendService
                         request.Response.Headers,
                         request.Response.Body,
                         ContentType = ExtractContentType(request.Response.Headers),
-                        Date = DateTime.TryParse(request.Response.Timestamp, out var respDate) ? respDate : DateTime.UtcNow
+                        Date = request.Response.Timestamp
                     } : null
                 };
                 
@@ -184,14 +184,12 @@ namespace BackendService
             // Applica i filtri
             if (fromDate.HasValue)
             {
-                var fromDateStr = fromDate.Value.ToString("yyyy-MM-dd HH:mm:ss");
-                query = query.Where(r => r.Timestamp.CompareTo(fromDateStr) >= 0);
+                query = query.Where(r => r.Timestamp >= fromDate.Value);
             }
             
             if (toDate.HasValue)
             {
-                var toDateStr = toDate.Value.ToString("yyyy-MM-dd HH:mm:ss");
-                query = query.Where(r => r.Timestamp.CompareTo(toDateStr) <= 0);
+                query = query.Where(r => r.Timestamp <= toDate.Value);
             }
             
             if (!string.IsNullOrEmpty(method))
@@ -326,7 +324,7 @@ namespace BackendService
         /// <summary>
         /// Estrae il content type dagli headers
         /// </summary>
-        private string ExtractContentType(string headers)
+        private string ExtractContentType(string? headers)
         {
             if (string.IsNullOrEmpty(headers))
             {
