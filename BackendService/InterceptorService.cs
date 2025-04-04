@@ -209,7 +209,7 @@ namespace BackendService
                 // Record the incoming request
                 var requestModel = new Models.HttpRequest
                 {
-                    Url = request.Url.ToString(),
+                    Url = request.Url?.ToString() ?? "unknown url",
                     Method = request.HttpMethod,
                     Headers = SerializeHeaders(request.Headers),
                     Body = await GetRequestBodyAsync(request),
@@ -220,16 +220,16 @@ namespace BackendService
                 _dbContext.Requests.Add(requestModel);
                 await _dbContext.SaveChangesAsync();
                 
-                _logger.LogInformation($"Received {request.HttpMethod} request for {request.Url}");
+                _logger.LogInformation($"Received {request.HttpMethod} request for {request.Url?.ToString() ?? "unknown url"}");
 
                 // Store HTTP response to be recorded
-                Models.HttpResponse responseModel = null;
+                Models.HttpResponse? responseModel = null;
                 
                 // Check if there's a matching rule
                 var rule = await _ruleService.FindMatchingRuleAsync(request);
                 if (rule != null)
                 {
-                    _logger.LogInformation($"Found matching rule for {request.Url}. Returning configured response.");
+                    _logger.LogInformation($"Found matching rule for {request.Url?.ToString() ?? "unknown url"}. Returning configured response.");
                     await SendResponseFromRuleAsync(response, rule.Response);
                     responseModel = rule.Response;
                 }
@@ -263,7 +263,7 @@ namespace BackendService
                                     serverRequest = new BackendService.Models.HttpRequest
                                     {
                                         Method = requestModel.Method,
-                                        Url = $"{_proxyDomain}{request.Url.PathAndQuery}",  // Usa l'URL del proxy
+                                        Url = $"{_proxyDomain}{request.Url?.PathAndQuery ?? ""}",  // Usa l'URL del proxy
                                         Headers = requestModel.Headers, // Utilizza gli stessi headers
                                         Body = requestModel.Body,
                                         Timestamp = DateTime.Now

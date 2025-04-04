@@ -175,7 +175,7 @@ namespace BackendService.Controllers
             {
                 // Parsificare i timestamp (il formato esatto dipende da come sono salvati nel database)
                 var requestTime = request.Timestamp;
-                var responseTime = request.Response.Timestamp;
+                var responseTime = request.Response?.Timestamp ?? DateTime.UtcNow;
                 double responseTimeMs = (responseTime - requestTime).TotalMilliseconds;
                 responseTimes.Add(responseTimeMs);
             }
@@ -276,7 +276,14 @@ namespace BackendService.Controllers
                     Method = g.Key,
                     Count = g.Count(),
                     AvgResponseTime = g.Where(r => r.Response != null)
-                        .Select(r => r.Response != null ? (r.Response.Timestamp - r.Timestamp).TotalMilliseconds : 0)
+                        .Select(r => {
+                            if (r.Response != null) {
+                                var responseTime = r.Response.Timestamp;
+                                var requestTime = r.Timestamp;
+                                return (responseTime - requestTime).TotalMilliseconds;
+                            }
+                            return 0.0;
+                        })
                         .DefaultIfEmpty(0)
                         .Average()
                 })

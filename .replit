@@ -46,7 +46,7 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd ClientApp && npm run serve"
+args = "cd ClientApp && NODE_OPTIONS=\"--no-experimental-fetch\" npm run serve -- --no-progress"
 waitForPort = 8080
 
 [deployment]
@@ -55,6 +55,10 @@ run = ["sh", "-c", "dotnet run --project BackendService"]
 [[ports]]
 localPort = 5000
 externalPort = 5000
+
+[[ports]]
+localPort = 5001
+externalPort = 3000
 
 [[ports]]
 localPort = 8888

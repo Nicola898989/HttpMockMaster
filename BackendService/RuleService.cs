@@ -86,12 +86,12 @@ namespace BackendService
             {
                 if (MatchesRule(request, rule))
                 {
-                    _logger.LogInformation($"Found matching rule: {rule.Name} for request: {request.Url}");
+                    _logger.LogInformation($"Found matching rule: {rule.Name} for request: {request.Url?.ToString() ?? "unknown url"}");
                     return rule;
                 }
             }
 
-            _logger.LogInformation($"No matching rule found for request: {request.Url}");
+            _logger.LogInformation($"No matching rule found for request: {request.Url?.ToString() ?? "unknown url"}");
             return null;
         }
 
@@ -113,7 +113,7 @@ namespace BackendService
                     try
                     {
                         var regex = new Regex(rule.PathPattern);
-                        if (!regex.IsMatch(request.Url.AbsolutePath))
+                        if (!regex.IsMatch(request.Url?.AbsolutePath ?? "/"))
                         {
                             return false;
                         }
@@ -125,7 +125,7 @@ namespace BackendService
                     }
                 }
                 // Simple string comparison
-                else if (!request.Url.AbsolutePath.Contains(rule.PathPattern))
+                else if (!request.Url?.AbsolutePath?.Contains(rule.PathPattern) ?? true)
                 {
                     return false;
                 }
@@ -134,7 +134,7 @@ namespace BackendService
             // Query parameter matching
             if (!string.IsNullOrEmpty(rule.QueryPattern))
             {
-                string query = request.Url.Query.TrimStart('?');
+                string query = request.Url?.Query?.TrimStart('?') ?? "";
                 
                 // Check if it's regex
                 if (rule.QueryPattern.StartsWith("^") || rule.QueryPattern.EndsWith("$"))

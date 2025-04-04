@@ -42,12 +42,12 @@ namespace BackendService.Models
         /// <summary>
         /// Prima stringa JSON da confrontare
         /// </summary>
-        public string Json1 { get; set; }
+        public string Json1 { get; set; } = string.Empty;
 
         /// <summary>
         /// Seconda stringa JSON da confrontare
         /// </summary>
-        public string Json2 { get; set; }
+        public string Json2 { get; set; } = string.Empty;
     }
 
     /// <summary>

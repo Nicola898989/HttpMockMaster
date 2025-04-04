@@ -33,6 +33,18 @@ namespace BackendService.Controllers
         {
             try
             {
+                // Verifica che la lista di ID sia valida
+                if (requestIds == null || requestIds.Count < 2)
+                {
+                    return BadRequest("Devi fornire almeno due ID di richieste da confrontare");
+                }
+                
+                // Verifica che tutti gli ID siano validi
+                if (requestIds.Any(id => id <= 0))
+                {
+                    return BadRequest("Tutti gli ID delle richieste devono essere numeri positivi");
+                }
+                
                 _logger.LogInformation("Richiesta di confronto per le richieste con ID: {RequestIds}", string.Join(", ", requestIds));
                 
                 var result = await _comparisonService.CompareRequests(requestIds);
@@ -40,12 +52,12 @@ namespace BackendService.Controllers
             }
             catch (ArgumentException ex)
             {
-                _logger.LogWarning(ex, "Errore nei parametri di confronto");
+                _logger.LogWarning(ex, "Errore nei parametri di confronto: {ErrorMessage}", ex.Message);
                 return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Errore durante il confronto delle richieste");
+                _logger.LogError(ex, "Errore durante il confronto delle richieste: {ErrorMessage}", ex.Message);
                 return StatusCode(500, "Si è verificato un errore durante l'elaborazione della richiesta");
             }
         }
@@ -56,7 +68,7 @@ namespace BackendService.Controllers
         /// <param name="request">Richiesta contenente le due stringhe JSON da confrontare</param>
         /// <returns>Le differenze rilevate tra i due JSON</returns>
         [HttpPost("json")]
-        public async Task<ActionResult<Dictionary<string, object>>> CompareJson([FromBody] JsonDiffRequest request)
+        public ActionResult<Dictionary<string, object>> CompareJson([FromBody] JsonDiffRequest request)
         {
             try
             {
@@ -72,14 +84,9 @@ namespace BackendService.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Errore durante il confronto JSON");
+                _logger.LogError(ex, "Errore durante il confronto JSON: {ErrorMessage}", ex.Message);
                 return StatusCode(500, "Si è verificato un errore durante l'elaborazione della richiesta");
             }
-
-            // Task.CompletedTask è usato solo per mantenere il metodo asincrono
-            // per consistenza con gli altri metodi del controller.
-            // In questo caso, l'operazione è sincrona.
-            await Task.CompletedTask;
         }
 
         /// <summary>
@@ -95,9 +102,20 @@ namespace BackendService.Controllers
             {
                 _logger.LogInformation("Richiesta di confronto risposte con ID: {ResponseId1}, {ResponseId2}", responseId1, responseId2);
                 
-                // Recupera le risposte dal database
-                var response1 = await _dbContext.Responses.FindAsync(responseId1);
-                var response2 = await _dbContext.Responses.FindAsync(responseId2);
+                // Verifiche preliminari
+                if (responseId1 <= 0 || responseId2 <= 0)
+                {
+                    return BadRequest("Gli ID delle risposte devono essere numeri positivi");
+                }
+                
+                // Recupera le risposte dal database utilizzando un'unica chiamata al DB per ottimizzazione
+                var responses = await Task.WhenAll(
+                    _dbContext.Responses.FindAsync(responseId1), 
+                    _dbContext.Responses.FindAsync(responseId2)
+                );
+                
+                var response1 = responses[0];
+                var response2 = responses[1];
 
                 if (response1 == null)
                 {
@@ -114,7 +132,7 @@ namespace BackendService.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Errore durante il confronto delle risposte");
+                _logger.LogError(ex, "Errore durante il confronto delle risposte: {ErrorMessage}", ex.Message);
                 return StatusCode(500, "Si è verificato un errore durante l'elaborazione della richiesta");
             }
         }

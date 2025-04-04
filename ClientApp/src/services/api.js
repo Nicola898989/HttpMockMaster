@@ -1,5 +1,9 @@
 import axios from 'axios'
 
+/**
+ * Configurazione del client API per le richieste HTTP
+ * Centralizza la configurazione delle richieste e la gestione degli errori
+ */
 const api = axios.create({
   baseURL: '/api',
   timeout: 10000,
@@ -9,7 +13,9 @@ const api = axios.create({
   }
 })
 
-// Add a request interceptor to handle errors globally
+/**
+ * Intercettore di richieste per la gestione degli errori
+ */
 api.interceptors.request.use(
   config => {
     return config
@@ -20,21 +26,24 @@ api.interceptors.request.use(
   }
 )
 
-// Add a response interceptor to handle errors globally
+/**
+ * Intercettore di risposte per la gestione degli errori
+ * Registra dettagli specifici sui diversi tipi di errore API
+ */
 api.interceptors.response.use(
   response => {
     return response
   },
   error => {
     if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
+      // La richiesta è stata effettuata e il server ha risposto con un codice di stato
+      // che non rientra nell'intervallo 2xx
       console.error('API Error:', error.response.status, error.response.data)
     } else if (error.request) {
-      // The request was made but no response was received
+      // La richiesta è stata effettuata ma non è stata ricevuta alcuna risposta
       console.error('API No Response:', error.request)
     } else {
-      // Something happened in setting up the request that triggered an Error
+      // Si è verificato un errore durante l'impostazione della richiesta
       console.error('API Request Setup Error:', error.message)
     }
     

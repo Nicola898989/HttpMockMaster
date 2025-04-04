@@ -46,7 +46,7 @@ namespace BackendService
                 var rule = await _ruleService.FindMatchingRuleAsync(request);
                 if (rule != null)
                 {
-                    _logger.LogInformation($"Rule match found for {request.Url.PathAndQuery}. Using mocked response.");
+                    _logger.LogInformation($"Rule match found for {request.Url?.PathAndQuery ?? "unknown path"}. Using mocked response.");
                     
                     // Applica la latenza simulata alle regole
                     await _networkSimulation.ApplyLatencyAsync();
@@ -57,12 +57,12 @@ namespace BackendService
                 // Controlla se la simulazione di perdita pacchetti dovrebbe far cadere questa richiesta
                 if (_networkSimulation.ShouldDropPacket(requestId))
                 {
-                    _logger.LogInformation($"Simulazione di rete: pacchetto perso per {request.Url}");
+                    _logger.LogInformation($"Simulazione di rete: pacchetto perso per {request.Url?.ToString() ?? "unknown url"}");
                     
                     // Record the request that was dropped
                     var droppedRequestModel = new Models.HttpRequest
                     {
-                        Url = request.Url.ToString(),
+                        Url = request.Url?.ToString() ?? "unknown url",
                         Method = request.HttpMethod,
                         Headers = SerializeHeaders(request.Headers),
                         Body = await GetRequestBodyAsync(request),
@@ -93,8 +93,8 @@ namespace BackendService
                 {
                     Scheme = targetDomain.StartsWith("https") ? "https" : "http",
                     Host = targetDomain.Replace("https://", "").Replace("http://", ""),
-                    Path = request.Url.AbsolutePath,
-                    Query = request.Url.Query.TrimStart('?')
+                    Path = request.Url?.AbsolutePath ?? "/",
+                    Query = request.Url?.Query?.TrimStart('?') ?? ""
                 }.Uri;
 
                 // Create the HTTP request
@@ -134,7 +134,7 @@ namespace BackendService
                 // Record the request
                 var requestModel = new Models.HttpRequest
                 {
-                    Url = request.Url.ToString(),
+                    Url = request.Url?.ToString() ?? "unknown url",
                     Method = request.HttpMethod,
                     Headers = SerializeHeaders(request.Headers),
                     Body = await GetRequestBodyAsync(request),
@@ -157,7 +157,7 @@ namespace BackendService
                 // Applica la simulazione di corruzione dei pacchetti se configurata
                 if (_networkSimulation.ShouldCorruptPacket())
                 {
-                    _logger.LogInformation($"Simulazione di rete: corruzione contenuto per {request.Url}");
+                    _logger.LogInformation($"Simulazione di rete: corruzione contenuto per {request.Url?.ToString() ?? "unknown url"}");
                     responseBody = _networkSimulation.CorruptContent(responseBody);
                 }
 
