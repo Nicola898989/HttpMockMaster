@@ -29,19 +29,35 @@ namespace BackendService.Controllers
             _logger = logger;
         }
 
-        // GET: api/TestScenarios
+        /// <summary>
+        /// Ottiene tutti gli scenari di test, con opzioni di paginazione e filtro.
+        /// </summary>
+        /// <param name="page">Numero di pagina (default: 1)</param>
+        /// <param name="pageSize">Dimensione della pagina (default: 20)</param>
+        /// <param name="includeInactive">Se includere gli scenari inattivi (default: false)</param>
+        /// <returns>Lista di scenari di test</returns>
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<TestScenario>>> GetTestScenarios()
+        public async Task<ActionResult<IEnumerable<TestScenario>>> GetTestScenarios(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] bool includeInactive = false)
         {
             try
             {
-                var scenarios = await _testScenarioService.GetAllScenariosAsync();
+                var (scenarios, totalCount) = await _testScenarioService.GetAllScenariosAsync(page, pageSize, includeInactive);
+
+                // Aggiungi intestazioni per la paginazione
+                Response.Headers.Add("X-Total-Count", totalCount.ToString());
+                Response.Headers.Add("X-Page", page.ToString());
+                Response.Headers.Add("X-Page-Size", pageSize.ToString());
+                Response.Headers.Add("X-Total-Pages", Math.Ceiling((double)totalCount / pageSize).ToString());
+                
                 return Ok(scenarios);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error retrieving test scenarios: {ex.Message}");
-                return StatusCode(500, "Internal server error occurred while retrieving test scenarios");
+                _logger.LogError($"Errore durante il recupero degli scenari di test: {ex.Message}");
+                return StatusCode(500, "Si è verificato un errore durante il recupero degli scenari di test");
             }
         }
 
@@ -214,32 +230,62 @@ namespace BackendService.Controllers
             }
         }
 
-        // POST: api/TestScenarios/5/execute
+        /// <summary>
+        /// Esegue uno scenario di test, opzionalmente eseguendo effettivamente le richieste HTTP.
+        /// </summary>
+        /// <param name="id">ID dello scenario da eseguire</param>
+        /// <param name="executeRequests">Se eseguire effettivamente le richieste HTTP (default: false)</param>
+        /// <returns>I risultati dell'esecuzione dello scenario</returns>
         [HttpPost("{id}/execute")]
-        public async Task<ActionResult<IEnumerable<object>>> ExecuteScenario(int id)
+        public async Task<ActionResult<IEnumerable<object>>> ExecuteScenario(
+            int id,
+            [FromQuery] bool executeRequests = false)
         {
             try
             {
-                var results = await _testScenarioService.ExecuteScenarioAsync(id);
-                
-                if (results == null)
+                var scenario = await _testScenarioService.GetScenarioByIdAsync(id);
+                if (scenario == null)
                 {
-                    return NotFound($"Test scenario with ID {id} was not found");
+                    return NotFound($"Scenario di test con ID {id} non trovato");
                 }
                 
-                // Convert to a more serializable format
-                var responseData = results.Select(pair => new 
+                var results = await _testScenarioService.ExecuteScenarioAsync(id, executeRequests);
+                
+                if (results.Count == 0)
                 {
-                    Request = pair.Item1,
-                    Response = pair.Item2
+                    return StatusCode(204, $"Nessuno step attivo trovato nello scenario '{scenario.Name}' (ID: {id})");
+                }
+                
+                // Converti in un formato più serializzabile
+                var responseData = results.Select(tuple => new 
+                {
+                    Request = tuple.Request,
+                    Response = tuple.Response,
+                    Success = tuple.Success,
+                    Method = tuple.Request.Method,
+                    Url = tuple.Request.Url,
+                    StatusCode = tuple.Response.StatusCode,
+                    ResponseSize = tuple.Response.Body?.Length ?? 0,
+                    ExecutedAt = DateTime.UtcNow,
+                    ExecutionMode = executeRequests ? "real" : "simulation"
                 }).ToList();
                 
-                return Ok(responseData);
+                return Ok(new
+                {
+                    ScenarioId = id,
+                    ScenarioName = scenario.Name,
+                    ExecutedSteps = results.Count,
+                    SuccessfulSteps = results.Count(r => r.Success),
+                    FailedSteps = results.Count(r => !r.Success),
+                    ExecutedAt = DateTime.UtcNow,
+                    RealExecution = executeRequests,
+                    Results = responseData
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error executing test scenario {id}: {ex.Message}");
-                return StatusCode(500, $"Internal server error occurred while executing test scenario {id}");
+                _logger.LogError(ex, $"Errore durante l'esecuzione dello scenario {id}: {ex.Message}");
+                return StatusCode(500, $"Si è verificato un errore durante l'esecuzione dello scenario {id}: {ex.Message}");
             }
         }
         
@@ -352,6 +398,37 @@ namespace BackendService.Controllers
             {
                 _logger.LogError($"Error getting recording status: {ex.Message}");
                 return StatusCode(500, "Internal server error occurred while getting recording status");
+            }
+        }
+        
+        /// <summary>
+        /// Esporta uno scenario di test in formato JSON.
+        /// </summary>
+        /// <param name="id">ID dello scenario da esportare</param>
+        /// <returns>Stringa JSON con lo scenario completo</returns>
+        [HttpGet("{id}/export")]
+        public async Task<IActionResult> ExportScenario(int id)
+        {
+            try
+            {
+                var scenario = await _testScenarioService.GetScenarioByIdAsync(id);
+                if (scenario == null)
+                {
+                    return NotFound($"Scenario di test con ID {id} non trovato");
+                }
+                
+                string jsonResult = await _testScenarioService.ExportScenarioAsync(id);
+                
+                // Imposta il nome del file di download
+                string fileName = $"scenario_{id}_{scenario.Name.Replace(" ", "_")}.json";
+                
+                // Restituisci il file JSON
+                return File(System.Text.Encoding.UTF8.GetBytes(jsonResult), "application/json", fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Errore durante l'esportazione dello scenario {id}: {ex.Message}");
+                return StatusCode(500, $"Si è verificato un errore durante l'esportazione dello scenario {id}: {ex.Message}");
             }
         }
     }
