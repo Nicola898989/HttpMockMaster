@@ -38,6 +38,12 @@
             </router-link>
           </li>
           <li class="nav-item">
+            <router-link class="nav-link" to="/performance" active-class="active">
+              <i data-feather="bar-chart-2" class="feather-icon"></i>
+              Performance
+            </router-link>
+          </li>
+          <li class="nav-item">
             <router-link class="nav-link" to="/settings" active-class="active">
               <i data-feather="settings" class="feather-icon"></i>
               Settings

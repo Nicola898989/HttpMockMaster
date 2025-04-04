@@ -4,6 +4,7 @@ import RulesView from '../views/RulesView.vue'
 import ProxyView from '../views/ProxyView.vue'
 import SettingsView from '../views/SettingsView.vue'
 import TopologyView from '../views/TopologyView.vue'
+import PerformanceView from '../views/PerformanceView.vue'
 
 const routes = [
   {
@@ -29,6 +30,11 @@ const routes = [
     path: '/topology',
     name: 'Topology',
     component: TopologyView
+  },
+  {
+    path: '/performance',
+    name: 'Performance',
+    component: PerformanceView
   },
   {
     path: '/settings',
