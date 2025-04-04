@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using BackendService.Models;
+using HttpRequestModel = BackendService.Models.HttpRequest;
 
 namespace BackendService.Controllers
 {
@@ -139,7 +140,7 @@ namespace BackendService.Controllers
             }
         }
 
-        private object CalculateResponseTimeMetrics(List<HttpRequest> requests)
+        private object CalculateResponseTimeMetrics(List<HttpRequestModel> requests)
         {
             // Calcolare i tempi di risposta (differenza tra timestamp della risposta e della richiesta)
             var responseTimes = new List<double>();
@@ -183,7 +184,7 @@ namespace BackendService.Controllers
             };
         }
 
-        private object CalculateRequestSizeMetrics(List<HttpRequest> requests)
+        private object CalculateRequestSizeMetrics(List<HttpRequestModel> requests)
         {
             // Calcolare le dimensioni delle richieste e risposte
             var requestSizes = new List<int>();
@@ -221,7 +222,7 @@ namespace BackendService.Controllers
             };
         }
 
-        private object CalculateMethodMetrics(List<HttpRequest> requests)
+        private object CalculateMethodMetrics(List<HttpRequestModel> requests)
         {
             // Contare le richieste per metodo HTTP
             var methodCounts = requests
@@ -232,12 +233,13 @@ namespace BackendService.Controllers
                     count = g.Count(),
                     avgResponseTime = g.Where(r => r.Response != null)
                         .Select(r => {
-                            if (DateTime.TryParse(r.Timestamp, out var requestTime) &&
+                            if (r.Response != null && 
+                                DateTime.TryParse(r.Timestamp, out var requestTime) &&
                                 DateTime.TryParse(r.Response.Timestamp, out var responseTime))
                             {
                                 return (responseTime - requestTime).TotalMilliseconds;
                             }
-                            return 0.0;
+                            return 0.0d;
                         })
                         .DefaultIfEmpty(0)
                         .Average()
@@ -248,7 +250,7 @@ namespace BackendService.Controllers
             return methodCounts;
         }
 
-        private object CalculateStatusCodeMetrics(List<HttpRequest> requests)
+        private object CalculateStatusCodeMetrics(List<HttpRequestModel> requests)
         {
             // Contare le risposte per codice di stato HTTP
             var statusCounts = requests
@@ -266,7 +268,7 @@ namespace BackendService.Controllers
             return statusCounts;
         }
 
-        private List<object> GroupRequestsByTimeInterval(List<HttpRequest> requests, string? groupBy, DateTime startDate, DateTime endDate)
+        private List<object> GroupRequestsByTimeInterval(List<HttpRequestModel> requests, string? groupBy, DateTime startDate, DateTime endDate)
         {
             // Determinare l'intervallo di tempo per il raggruppamento
             TimeSpan interval = groupBy?.ToLower() switch
@@ -289,7 +291,7 @@ namespace BackendService.Controllers
                 .Select(r => new
                 {
                     Request = r,
-                    DateTime = DateTime.TryParse(r.Timestamp, out var dt) ? dt : startDate
+                    TimestampDate = DateTime.TryParse(r.Timestamp, out var dt) ? dt : startDate
                 })
                 .ToList();
 
@@ -299,7 +301,7 @@ namespace BackendService.Controllers
                 var bucketEnd = bucketStart.Add(interval);
                 
                 var bucketRequests = requestsWithDateTime
-                    .Where(r => r.DateTime >= bucketStart && r.DateTime < bucketEnd)
+                    .Where(r => r.TimestampDate >= bucketStart && r.TimestampDate < bucketEnd)
                     .Select(r => r.Request)
                     .ToList();
 
@@ -307,22 +309,23 @@ namespace BackendService.Controllers
                 var responseTimes = bucketRequests
                     .Where(r => r.Response != null)
                     .Select(r => {
-                        if (DateTime.TryParse(r.Timestamp, out var requestTime) &&
+                        if (r.Response != null && 
+                            DateTime.TryParse(r.Timestamp, out var requestTime) &&
                             DateTime.TryParse(r.Response.Timestamp, out var responseTime))
                         {
                             return (responseTime - requestTime).TotalMilliseconds;
                         }
-                        return 0.0;
+                        return 0.0d;
                     })
                     .ToList();
 
                 return new
                 {
                     timestamp = bucketStart,
-                    requestCount = bucketRequests.Count,
+                    requestCount = bucketRequests.Count(),
                     avgResponseTime = responseTimes.Any() ? responseTimes.Average() : 0,
-                    successRate = bucketRequests.Count > 0 
-                        ? (double)bucketRequests.Count(r => r.Response != null && r.Response.StatusCode >= 200 && r.Response.StatusCode < 400) / bucketRequests.Count * 100 
+                    successRate = bucketRequests.Count() > 0 
+                        ? (double)bucketRequests.Count(r => r.Response != null && r.Response.StatusCode >= 200 && r.Response.StatusCode < 400) / bucketRequests.Count() * 100 
                         : 0
                 };
             }).ToList();
@@ -333,8 +336,8 @@ namespace BackendService.Controllers
             if (!values.Any())
                 return 0;
                 
-            var index = (int)Math.Ceiling(percentile / 100.0 * values.Count) - 1;
-            return values[Math.Max(0, Math.Min(index, values.Count - 1))];
+            var index = (int)Math.Ceiling(percentile / 100.0 * values.Count()) - 1;
+            return values[Math.Max(0, Math.Min(index, values.Count() - 1))];
         }
     }
 }

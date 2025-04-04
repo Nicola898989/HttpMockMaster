@@ -373,6 +373,7 @@ namespace BackendService
             
             // Services
             services.AddScoped<RuleService>();
+            services.AddSingleton<NetworkSimulationService>();
             services.AddScoped<ProxyService>();
             services.AddScoped<TestScenarioService>();
             services.AddScoped<ExportService>();

@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using BackendService.Models;
+using HttpRequestModel = BackendService.Models.HttpRequest;
 
 namespace BackendService
 {
@@ -168,7 +169,7 @@ namespace BackendService
         /// <summary>
         /// Ottiene le richieste filtrate dal database
         /// </summary>
-        private async Task<List<HttpRequest>> GetFilteredRequestsAsync(
+        private async Task<List<HttpRequestModel>> GetFilteredRequestsAsync(
             DateTime? fromDate, 
             DateTime? toDate, 
             string? method, 

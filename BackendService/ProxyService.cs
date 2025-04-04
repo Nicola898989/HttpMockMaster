@@ -15,16 +15,23 @@ namespace BackendService
         private readonly DatabaseContext _dbContext;
         private readonly ILogger<ProxyService> _logger;
         private readonly RuleService _ruleService;
+        private readonly NetworkSimulationService _networkSimulation;
         
         // Questo delegate ci permette di sostituire il metodo GetRequestBodyAsync nei test
         public Func<HttpListenerRequest, Task<string>>? GetRequestBodyMethodForTest { get; set; }
 
-        public ProxyService(HttpClient httpClient, DatabaseContext dbContext, ILogger<ProxyService> logger, RuleService ruleService)
+        public ProxyService(
+            HttpClient httpClient, 
+            DatabaseContext dbContext, 
+            ILogger<ProxyService> logger, 
+            RuleService ruleService,
+            NetworkSimulationService networkSimulation)
         {
             _httpClient = httpClient;
             _dbContext = dbContext;
             _logger = logger;
             _ruleService = ruleService;
+            _networkSimulation = networkSimulation;
             // GetRequestBodyMethodForTest è nullable, non serve inizializzarlo
         }
 
@@ -32,12 +39,53 @@ namespace BackendService
         {
             try
             {
+                // Genera un ID univoco per questa richiesta
+                string requestId = Guid.NewGuid().ToString();
+                
                 // Check if there's a rule matching this request
                 var rule = await _ruleService.FindMatchingRuleAsync(request);
                 if (rule != null)
                 {
                     _logger.LogInformation($"Rule match found for {request.Url.PathAndQuery}. Using mocked response.");
+                    
+                    // Applica la latenza simulata alle regole
+                    await _networkSimulation.ApplyLatencyAsync();
+                    
                     return rule.Response;
+                }
+                
+                // Controlla se la simulazione di perdita pacchetti dovrebbe far cadere questa richiesta
+                if (_networkSimulation.ShouldDropPacket(requestId))
+                {
+                    _logger.LogInformation($"Simulazione di rete: pacchetto perso per {request.Url}");
+                    
+                    // Record the request that was dropped
+                    var droppedRequestModel = new Models.HttpRequest
+                    {
+                        Url = request.Url.ToString(),
+                        Method = request.HttpMethod,
+                        Headers = SerializeHeaders(request.Headers),
+                        Body = await GetRequestBodyAsync(request),
+                        Timestamp = DateTime.UtcNow,
+                        IsProxied = true,
+                        TargetDomain = targetDomain
+                    };
+                    _dbContext.Requests.Add(droppedRequestModel);
+                    await _dbContext.SaveChangesAsync();
+                    
+                    // Restituisci una risposta di errore di timeout
+                    var droppedResponseModel = new Models.HttpResponse
+                    {
+                        RequestId = droppedRequestModel.Id,
+                        StatusCode = 504, // Gateway Timeout
+                        Headers = "Content-Type: text/plain\r\n",
+                        Body = "Simulated network packet loss",
+                        Timestamp = DateTime.UtcNow
+                    };
+                    _dbContext.Responses.Add(droppedResponseModel);
+                    await _dbContext.SaveChangesAsync();
+                    
+                    return droppedResponseModel;
                 }
 
                 // Build the target URL
@@ -97,8 +145,21 @@ namespace BackendService
                 _dbContext.Requests.Add(requestModel);
                 await _dbContext.SaveChangesAsync();
 
+                // Applica la latenza simulata prima di inviare la richiesta
+                await _networkSimulation.ApplyLatencyAsync();
+                
                 // Send the request
                 var response = await _httpClient.SendAsync(requestMessage);
+                
+                // Recupera il corpo della risposta
+                string responseBody = await response.Content.ReadAsStringAsync();
+                
+                // Applica la simulazione di corruzione dei pacchetti se configurata
+                if (_networkSimulation.ShouldCorruptPacket())
+                {
+                    _logger.LogInformation($"Simulazione di rete: corruzione contenuto per {request.Url}");
+                    responseBody = _networkSimulation.CorruptContent(responseBody);
+                }
 
                 // Record the response
                 var responseModel = new Models.HttpResponse
@@ -106,7 +167,7 @@ namespace BackendService
                     RequestId = requestModel.Id,
                     StatusCode = (int)response.StatusCode,
                     Headers = SerializeHeaders(response.Headers, response.Content.Headers),
-                    Body = await response.Content.ReadAsStringAsync(),
+                    Body = responseBody,
                     Timestamp = DateTime.UtcNow
                 };
                 _dbContext.Responses.Add(responseModel);

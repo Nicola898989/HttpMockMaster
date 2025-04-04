@@ -42,6 +42,11 @@
         </button>
       </section>
       
+      <section class="settings-section">
+        <h2>Simulazione di Rete</h2>
+        <network-simulation-settings />
+      </section>
+      
       <section class="settings-section danger-zone">
         <h2>Zona Pericolo</h2>
         
@@ -83,12 +88,14 @@
 
 <script>
 import ExportOptions from '@/components/ExportOptions.vue';
+import NetworkSimulationSettings from '@/components/NetworkSimulationSettings.vue';
 import axios from 'axios';
 
 export default {
   name: 'SettingsView',
   components: {
-    ExportOptions
+    ExportOptions,
+    NetworkSimulationSettings
   },
   data() {
     return {
