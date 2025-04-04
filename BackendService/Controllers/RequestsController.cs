@@ -28,11 +28,14 @@ namespace BackendService.Controllers
             [FromQuery] int pageSize = 20,
             [FromQuery] string? method = null,
             [FromQuery] string? url = null,
-            [FromQuery] bool? isProxied = null)
+            [FromQuery] bool? isProxied = null,
+            [FromQuery] string? sortBy = "timestamp",
+            [FromQuery] bool descending = true)
         {
             try
             {
-                IQueryable<Models.HttpRequest> query = _dbContext.Requests;
+                // Start with a simple basic query for better performance
+                IQueryable<Models.HttpRequest> query = _dbContext.Requests.AsNoTracking();
 
                 // Apply filters
                 if (!string.IsNullOrEmpty(method))
@@ -50,19 +53,26 @@ namespace BackendService.Controllers
                     query = query.Where(r => r.IsProxied == isProxied.Value);
                 }
 
-                // Apply pagination
-                var totalCount = await query.CountAsync();
+                // Get total count with a separate efficient query
+                // This prevents having to materialize the entire result set just to count
+                var countQuery = query;
+                var totalCount = await countQuery.CountAsync();
                 var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
+                // Apply sorting
+                query = ApplySorting(query, sortBy, descending);
+
+                // Apply pagination efficiently
                 var requests = await query
-                    .OrderByDescending(r => r.Timestamp)
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
                     .ToListAsync();
 
-                // Add pagination headers
+                // Add pagination and metadata headers
                 Response.Headers.Add("X-Total-Count", totalCount.ToString());
                 Response.Headers.Add("X-Total-Pages", totalPages.ToString());
+                Response.Headers.Add("X-Current-Page", page.ToString());
+                Response.Headers.Add("X-Page-Size", pageSize.ToString());
 
                 return Ok(requests);
             }
@@ -70,6 +80,49 @@ namespace BackendService.Controllers
             {
                 _logger.LogError(ex, "Error retrieving requests");
                 return StatusCode(500, "Internal server error");
+            }
+        }
+        
+        // Helper method to apply sorting based on dynamic parameters
+        private IQueryable<Models.HttpRequest> ApplySorting(
+            IQueryable<Models.HttpRequest> query, 
+            string? sortBy, 
+            bool descending)
+        {
+            // Default sort is by timestamp
+            if (string.IsNullOrEmpty(sortBy))
+            {
+                sortBy = "timestamp";
+            }
+            
+            // Apply the appropriate sorting based on the field
+            switch (sortBy.ToLower())
+            {
+                case "method":
+                    return descending 
+                        ? query.OrderByDescending(r => r.Method) 
+                        : query.OrderBy(r => r.Method);
+                
+                case "url":
+                    return descending 
+                        ? query.OrderByDescending(r => r.Url) 
+                        : query.OrderBy(r => r.Url);
+                
+                case "isproxied":
+                    return descending 
+                        ? query.OrderByDescending(r => r.IsProxied) 
+                        : query.OrderBy(r => r.IsProxied);
+                
+                case "targetdomain":
+                    return descending 
+                        ? query.OrderByDescending(r => r.TargetDomain) 
+                        : query.OrderBy(r => r.TargetDomain);
+                
+                case "timestamp":
+                default:
+                    return descending 
+                        ? query.OrderByDescending(r => r.Timestamp) 
+                        : query.OrderBy(r => r.Timestamp);
             }
         }
 

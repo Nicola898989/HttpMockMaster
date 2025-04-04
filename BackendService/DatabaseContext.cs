@@ -31,7 +31,8 @@ namespace BackendService
 
             modelBuilder.Entity<Models.HttpRequest>()
                 .Property(r => r.Method)
-                .IsRequired();
+                .IsRequired()
+                .HasMaxLength(10);  // GET, POST, PUT, etc.
 
             modelBuilder.Entity<Models.HttpRequest>()
                 .Property(r => r.Headers)
@@ -40,6 +41,16 @@ namespace BackendService
             modelBuilder.Entity<Models.HttpRequest>()
                 .Property(r => r.Body)
                 .HasColumnType("TEXT");
+                
+            // Add indexes for better query performance
+            modelBuilder.Entity<Models.HttpRequest>()
+                .HasIndex(r => r.Timestamp);
+                
+            modelBuilder.Entity<Models.HttpRequest>()
+                .HasIndex(r => r.Method);
+                
+            modelBuilder.Entity<Models.HttpRequest>()
+                .HasIndex(r => r.IsProxied);
 
             // Configure HttpResponse
             modelBuilder.Entity<Models.HttpResponse>()

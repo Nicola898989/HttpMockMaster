@@ -147,6 +147,28 @@ namespace BackendService
             app.UseRouting();
             app.UseCors("AllowAll");
             
+            // Add caching middleware
+            app.UseResponseCaching();
+            
+            // Add cache control headers to API responses
+            app.Use(async (context, next) =>
+            {
+                // Add cache control headers for API routes only
+                if (context.Request.Path.StartsWithSegments("/api"))
+                {
+                    // Dynamic content like /api/requests shouldn't be cached by proxies
+                    // but can still use the ResponseCache attribute
+                    context.Response.GetTypedHeaders().CacheControl = new Microsoft.Net.Http.Headers.CacheControlHeaderValue
+                    {
+                        Public = true,
+                        MaxAge = TimeSpan.FromSeconds(10),
+                        MustRevalidate = true
+                    };
+                }
+                
+                await next();
+            });
+            
             app.MapControllers();
             
             // Start the application
@@ -164,8 +186,13 @@ namespace BackendService
             services.AddDbContext<DatabaseContext>(options =>
                 options.UseSqlite($"Data Source={dbPath}"));
                 
-            // HTTP Client for proxy
-            services.AddHttpClient();
+            // Add memory cache for improved performance
+            services.AddMemoryCache();
+                
+            // HTTP Client for proxy with resilience
+            services.AddHttpClient(options => {
+                options.Timeout = TimeSpan.FromSeconds(30);
+            }).SetHandlerLifetime(TimeSpan.FromMinutes(5)); // Keep connections alive longer
             services.AddSingleton<HttpClient>();
             
             // Services
@@ -175,8 +202,12 @@ namespace BackendService
             services.AddSingleton<InterceptorService>();
             services.AddHostedService(provider => provider.GetRequiredService<InterceptorService>());
             
-            // Controllers and API
+            // Controllers and API with response caching
             services.AddControllers();
+            services.AddResponseCaching(options => {
+                options.MaximumBodySize = 64 * 1024 * 1024; // 64MB
+                options.UseCaseSensitivePaths = false;
+            });
             
             // CORS
             services.AddCors(options =>
