@@ -1,91 +1,63 @@
 <template>
   <div class="export-options">
-    <h3>Opzioni di esportazione</h3>
+    <h3>Esporta Richieste</h3>
     
-    <div class="export-filters">
+    <div class="export-form">
       <div class="form-group">
-        <label for="exportFormat">Formato</label>
+        <label for="exportFormat">Formato:</label>
         <select id="exportFormat" v-model="exportFormat" class="form-control">
           <option value="json">JSON</option>
           <option value="csv">CSV</option>
         </select>
       </div>
       
-      <div class="form-group">
-        <label for="startDate">Data di inizio</label>
-        <input 
-          type="date" 
-          id="startDate" 
-          v-model="filters.startDate" 
-          class="form-control"
-        />
+      <div class="filter-section">
+        <h4>Filtri</h4>
+        
+        <div class="form-group">
+          <label for="methodFilter">Metodo HTTP:</label>
+          <select id="methodFilter" v-model="filters.method" class="form-control">
+            <option value="">Tutti</option>
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="DELETE">DELETE</option>
+            <option value="PATCH">PATCH</option>
+            <option value="OPTIONS">OPTIONS</option>
+            <option value="HEAD">HEAD</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="hostFilter">Host:</label>
+          <input id="hostFilter" type="text" v-model="filters.host" class="form-control" placeholder="es. api.example.com" />
+        </div>
+        
+        <div class="form-group">
+          <label for="fromDateFilter">Da data:</label>
+          <input id="fromDateFilter" type="datetime-local" v-model="filters.fromDate" class="form-control" />
+        </div>
+        
+        <div class="form-group">
+          <label for="toDateFilter">A data:</label>
+          <input id="toDateFilter" type="datetime-local" v-model="filters.toDate" class="form-control" />
+        </div>
       </div>
       
-      <div class="form-group">
-        <label for="endDate">Data di fine</label>
-        <input 
-          type="date" 
-          id="endDate" 
-          v-model="filters.endDate" 
-          class="form-control"
-        />
+      <div class="error-container" v-if="error">
+        <div class="alert alert-danger">{{ error }}</div>
       </div>
       
-      <div class="form-group">
-        <label for="method">Metodo HTTP</label>
-        <select id="method" v-model="filters.method" class="form-control">
-          <option value="">Tutti</option>
-          <option value="GET">GET</option>
-          <option value="POST">POST</option>
-          <option value="PUT">PUT</option>
-          <option value="DELETE">DELETE</option>
-          <option value="PATCH">PATCH</option>
-          <option value="OPTIONS">OPTIONS</option>
-          <option value="HEAD">HEAD</option>
-        </select>
+      <div class="btn-container">
+        <button class="btn btn-primary" @click="exportData" :disabled="isExporting">
+          <span v-if="isExporting">
+            <i class="spinner"></i> Esportazione in corso...
+          </span>
+          <span v-else>
+            Esporta
+          </span>
+        </button>
       </div>
-      
-      <div class="form-group">
-        <label for="host">Host</label>
-        <input 
-          type="text" 
-          id="host" 
-          v-model="filters.host" 
-          class="form-control" 
-          placeholder="Es. example.com"
-        />
-      </div>
-    </div>
-    
-    <div class="export-actions">
-      <button 
-        @click="exportData" 
-        class="btn btn-primary"
-        :disabled="isExporting"
-      >
-        <span v-if="isExporting">
-          <i class="fas fa-spinner fa-spin"></i> Esportazione...
-        </span>
-        <span v-else>
-          <i class="fas fa-download"></i> Esporta
-        </span>
-      </button>
-      
-      <button 
-        @click="resetFilters" 
-        class="btn btn-outline-secondary ml-2"
-        :disabled="isExporting"
-      >
-        <i class="fas fa-sync-alt"></i> Reset filtri
-      </button>
-    </div>
-    
-    <div v-if="error" class="alert alert-danger mt-3">
-      <i class="fas fa-exclamation-triangle"></i> {{ error }}
-    </div>
-    
-    <div v-if="success" class="alert alert-success mt-3">
-      <i class="fas fa-check-circle"></i> {{ success }}
     </div>
   </div>
 </template>
@@ -99,76 +71,57 @@ export default {
     return {
       exportFormat: 'json',
       filters: {
-        startDate: '',
-        endDate: '',
         method: '',
-        host: ''
+        host: '',
+        fromDate: '',
+        toDate: ''
       },
       isExporting: false,
-      error: null,
-      success: null
+      error: null
     };
   },
   methods: {
-    async exportData() {
-      this.error = null;
-      this.success = null;
+    exportData() {
       this.isExporting = true;
+      this.error = null;
       
       try {
-        let result;
-        let filename;
-        const formattedDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        // Prepariamo i filtri
+        const filters = { ...this.filters };
         
-        // Preparazione dei filtri
-        const exportFilters = {};
-        
-        if (this.filters.startDate) {
-          exportFilters.fromDate = new Date(this.filters.startDate);
+        // Convertiamo il formato delle date se fornite
+        if (filters.fromDate) {
+          filters.fromDate = new Date(filters.fromDate);
         }
         
-        if (this.filters.endDate) {
-          exportFilters.toDate = new Date(this.filters.endDate);
+        if (filters.toDate) {
+          filters.toDate = new Date(filters.toDate);
         }
         
-        if (this.filters.method) {
-          exportFilters.method = this.filters.method;
-        }
-        
-        if (this.filters.host) {
-          exportFilters.host = this.filters.host;
-        }
-        
-        // Esportazione in base al formato scelto
+        // In base al formato scelto, chiamiamo il metodo appropriato
         if (this.exportFormat === 'json') {
-          result = await exportService.exportAsJson(exportFilters);
-          filename = `http_requests_${formattedDate}.json`;
-        } else {
-          result = await exportService.exportAsCsv(exportFilters);
-          filename = `http_requests_${formattedDate}.csv`;
+          exportService.exportAsJson(filters)
+            .then(() => {
+              this.isExporting = false;
+            })
+            .catch(error => {
+              this.error = `Errore durante l'esportazione JSON: ${error.message}`;
+              this.isExporting = false;
+            });
+        } else if (this.exportFormat === 'csv') {
+          exportService.exportAsCsv(filters)
+            .then(() => {
+              this.isExporting = false;
+            })
+            .catch(error => {
+              this.error = `Errore durante l'esportazione CSV: ${error.message}`;
+              this.isExporting = false;
+            });
         }
-        
-        // Download del file
-        exportService.downloadFile(result, filename);
-        
-        this.success = `Esportazione completata con successo. File: ${filename}`;
-      } catch (error) {
-        console.error('Errore durante l\'esportazione:', error);
-        this.error = `Si è verificato un errore durante l'esportazione: ${error.message || 'Errore sconosciuto'}`;
-      } finally {
+      } catch (err) {
+        this.error = `Errore imprevisto: ${err.message}`;
         this.isExporting = false;
       }
-    },
-    
-    resetFilters() {
-      this.filters = {
-        startDate: '',
-        endDate: '',
-        method: '',
-        host: ''
-      };
-      this.error = null;
-      this.success = null;
     }
   }
 };
@@ -179,42 +132,89 @@ export default {
   background-color: #f8f9fa;
   border-radius: 8px;
   padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   margin-bottom: 20px;
 }
 
-.export-filters {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
+h3 {
   margin-bottom: 20px;
+  color: #343a40;
+}
+
+h4 {
+  margin: 15px 0;
+  color: #495057;
+  font-size: 1.1rem;
 }
 
 .form-group {
-  margin-bottom: 0;
+  margin-bottom: 15px;
 }
 
 label {
   display: block;
   margin-bottom: 5px;
   font-weight: 500;
+  color: #495057;
 }
 
-.export-actions {
-  display: flex;
-  gap: 10px;
+.form-control {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.filter-section {
+  margin-top: 20px;
+  padding-top: 10px;
+  border-top: 1px solid #dee2e6;
+}
+
+.error-container {
+  margin: 15px 0;
+}
+
+.btn-container {
+  margin-top: 20px;
 }
 
 .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
-.ml-2 {
-  margin-left: 0.5rem;
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+  border: none;
 }
 
-.mt-3 {
-  margin-top: 1rem;
+.btn-primary:hover {
+  background-color: #0069d9;
+}
+
+.btn-primary:disabled {
+  background-color: #80bdff;
+  cursor: not-allowed;
+}
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>
