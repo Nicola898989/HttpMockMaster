@@ -150,14 +150,14 @@ namespace BackendService
                 existing.StatusCode = template.StatusCode;
                 existing.Headers = template.Headers;
                 existing.Body = template.Body;
-                existing.UpdatedAt = DateTime.UtcNow;
+                existing.UpdatedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
                 existing.Category = template.Category;
             }
             else
             {
                 // Crea un nuovo template
                 template.IsSystem = false;
-                template.CreatedAt = DateTime.UtcNow;
+                template.CreatedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
                 
                 _dbContext.ResponseTemplates.Add(template);
             }
@@ -203,7 +203,7 @@ namespace BackendService
                 if (!exists)
                 {
                     template.IsSystem = true;
-                    template.CreatedAt = DateTime.UtcNow;
+                    template.CreatedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
                     
                     _dbContext.ResponseTemplates.Add(template);
                 }

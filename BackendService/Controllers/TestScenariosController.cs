@@ -266,7 +266,7 @@ namespace BackendService.Controllers
                     Url = tuple.Request.Url,
                     StatusCode = tuple.Response.StatusCode,
                     ResponseSize = tuple.Response.Body?.Length ?? 0,
-                    ExecutedAt = DateTime.UtcNow,
+                    ExecutedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"),
                     ExecutionMode = executeRequests ? "real" : "simulation"
                 }).ToList();
                 
@@ -277,7 +277,7 @@ namespace BackendService.Controllers
                     ExecutedSteps = results.Count,
                     SuccessfulSteps = results.Count(r => r.Success),
                     FailedSteps = results.Count(r => !r.Success),
-                    ExecutedAt = DateTime.UtcNow,
+                    ExecutedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"),
                     RealExecution = executeRequests,
                     Results = responseData
                 });
@@ -389,7 +389,7 @@ namespace BackendService.Controllers
                     interceptorIsRecording = interceptorIsRecording,
                     
                     // Add the timestamp for when the status was retrieved
-                    timestamp = DateTime.UtcNow
+                    timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
                 };
                 
                 return Ok(result);

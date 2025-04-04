@@ -25,8 +25,8 @@ namespace BackendService.Controllers
         public class PerformanceMetricsResponse
         {
             public string TimeFrame { get; set; }
-            public DateTime? StartDate { get; set; }
-            public DateTime? EndDate { get; set; }
+            public string StartDate { get; set; }
+            public string EndDate { get; set; }
             public int TotalRequests { get; set; }
             public ResponseTimeMetrics ResponseTimeMetrics { get; set; }
             public RequestSizeMetrics RequestSizeMetrics { get; set; }
@@ -83,8 +83,8 @@ namespace BackendService.Controllers
                 var response = new PerformanceMetricsResponse
                 {
                     TimeFrame = timeFrame,
-                    StartDate = startDate,
-                    EndDate = endDate,
+                    StartDate = startDate.Value.ToString("yyyy-MM-dd HH:mm:ss"),
+                    EndDate = endDate.Value.ToString("yyyy-MM-dd HH:mm:ss"),
                     TotalRequests = requests.Count,
                     ResponseTimeMetrics = responseTimeMetrics,
                     RequestSizeMetrics = requestSizeMetrics,
@@ -104,8 +104,8 @@ namespace BackendService.Controllers
         public class TimeSeriesResponse
         {
             public string TimeFrame { get; set; }
-            public DateTime? StartDate { get; set; }
-            public DateTime? EndDate { get; set; }
+            public string StartDate { get; set; }
+            public string EndDate { get; set; }
             public string GroupBy { get; set; }
             public List<TimeSeriesPoint> Data { get; set; }
         }
@@ -148,8 +148,8 @@ namespace BackendService.Controllers
                 var response = new TimeSeriesResponse
                 {
                     TimeFrame = timeFrame,
-                    StartDate = startDate,
-                    EndDate = endDate,
+                    StartDate = startDate.Value.ToString("yyyy-MM-dd HH:mm:ss"),
+                    EndDate = endDate.Value.ToString("yyyy-MM-dd HH:mm:ss"),
                     GroupBy = groupBy,
                     Data = timeSeriesData
                 };
@@ -330,7 +330,7 @@ namespace BackendService.Controllers
 
         public class TimeSeriesPoint
         {
-            public DateTime Timestamp { get; set; }
+            public string Timestamp { get; set; }
             public int RequestCount { get; set; }
             public double AvgResponseTime { get; set; }
             public double SuccessRate { get; set; }
@@ -390,7 +390,7 @@ namespace BackendService.Controllers
                     
                 result.Add(new TimeSeriesPoint
                 {
-                    Timestamp = bucketStart,
+                    Timestamp = bucketStart.ToString("yyyy-MM-dd HH:mm:ss"),
                     RequestCount = bucketRequests.Count(),
                     AvgResponseTime = responseTimes.Any() ? responseTimes.Average() : 0,
                     SuccessRate = bucketRequests.Count() > 0 

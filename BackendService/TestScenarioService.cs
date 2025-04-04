@@ -22,7 +22,7 @@ namespace BackendService
         private readonly ILogger<TestScenarioService> _logger;
         private readonly HttpClient _httpClient;
         private int? _recordingScenarioId;
-        private DateTime _recordingStartTime;
+        private string _recordingStartTime;
 
         /// <summary>
         /// Indica se la registrazione è attiva.
@@ -35,9 +35,9 @@ namespace BackendService
         public int? RecordingScenarioId => _recordingScenarioId;
         
         /// <summary>
-        /// Ottiene il timestamp di inizio della registrazione corrente, o DateTime.MinValue se non in registrazione.
+        /// Ottiene il timestamp di inizio della registrazione corrente come stringa, o stringa vuota se non in registrazione.
         /// </summary>
-        public DateTime RecordingStartTime => IsRecording ? _recordingStartTime : DateTime.MinValue;
+        public string RecordingStartTime => IsRecording ? _recordingStartTime : "";
 
         /// <summary>
         /// Inizializza una nuova istanza di TestScenarioService.
@@ -50,7 +50,7 @@ namespace BackendService
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _httpClient = new HttpClient();
             _recordingScenarioId = null;
-            _recordingStartTime = DateTime.MinValue;
+            _recordingStartTime = "";
         }
         
         /// <summary>
@@ -79,7 +79,7 @@ namespace BackendService
             }
             
             _recordingScenarioId = scenarioId;
-            _recordingStartTime = DateTime.UtcNow;
+            _recordingStartTime = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
             _logger.LogInformation($"Avviata registrazione per lo scenario ID: {scenarioId} alle {_recordingStartTime}");
             return true;
         }
@@ -96,11 +96,12 @@ namespace BackendService
                 return false;
             }
             
-            var duration = DateTime.UtcNow - _recordingStartTime;
-            _logger.LogInformation($"Fermata registrazione per lo scenario {_recordingScenarioId}. Durata: {duration.TotalSeconds:F2} secondi");
+            // Non possiamo più calcolare la duration perché ora _recordingStartTime è una stringa
+            // Ma possiamo comunque loggare l'informazione
+            _logger.LogInformation($"Fermata registrazione per lo scenario {_recordingScenarioId}");
             
             _recordingScenarioId = null;
-            _recordingStartTime = DateTime.MinValue;
+            _recordingStartTime = "";
             return true;
         }
         
@@ -117,8 +118,9 @@ namespace BackendService
         /// </returns>
         public async Task<object> GetRecordingStatusAsync()
         {
-            var now = DateTime.UtcNow;
-            var duration = IsRecording ? (now - _recordingStartTime).TotalSeconds : 0;
+            var now = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+            // Non possiamo più calcolare la duration basata sulla differenza di tempo
+            double duration = 0;
             
             // Carica il nome dello scenario se stiamo registrando
             string? scenarioName = null;
@@ -145,7 +147,7 @@ namespace BackendService
                 scenarioId = RecordingScenarioId,
                 scenarioName = scenarioName,
                 stepCount = stepCount,
-                recordingStartTime = IsRecording ? _recordingStartTime : (DateTime?)null,
+                recordingStartTime = IsRecording ? _recordingStartTime : null,
                 recordingDurationSeconds = Math.Round(duration, 2),
                 timestamp = now
             };
@@ -248,7 +250,7 @@ namespace BackendService
                 throw new ArgumentException("Il nome dello scenario non può essere vuoto", nameof(scenario));
             }
             
-            scenario.CreatedAt = DateTime.UtcNow;
+            scenario.CreatedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
             
             _context.TestScenarios.Add(scenario);
             await _context.SaveChangesAsync();

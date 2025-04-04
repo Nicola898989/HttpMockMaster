@@ -44,12 +44,12 @@ namespace BackendService.Models
         /// <summary>
         /// Data di creazione del template
         /// </summary>
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public string CreatedAt { get; set; } = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
         
         /// <summary>
         /// Ultima modifica del template
         /// </summary>
-        public DateTime? UpdatedAt { get; set; }
+        public string? UpdatedAt { get; set; }
         
         /// <summary>
         /// Categoria del template (es. "Success", "Error", "Redirect", ecc.)

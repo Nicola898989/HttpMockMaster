@@ -66,7 +66,7 @@ namespace BackendService
                         Method = request.HttpMethod,
                         Headers = SerializeHeaders(request.Headers),
                         Body = await GetRequestBodyAsync(request),
-                        Timestamp = DateTime.UtcNow.ToString("o"),
+                        Timestamp = DateTime.UtcNow,
                         IsProxied = true,
                         TargetDomain = targetDomain
                     };
@@ -80,7 +80,7 @@ namespace BackendService
                         StatusCode = 504, // Gateway Timeout
                         Headers = "Content-Type: text/plain\r\n",
                         Body = "Simulated network packet loss",
-                        Timestamp = DateTime.UtcNow.ToString("o")
+                        Timestamp = DateTime.UtcNow
                     };
                     _dbContext.Responses.Add(droppedResponseModel);
                     await _dbContext.SaveChangesAsync();
@@ -138,7 +138,7 @@ namespace BackendService
                     Method = request.HttpMethod,
                     Headers = SerializeHeaders(request.Headers),
                     Body = await GetRequestBodyAsync(request),
-                    Timestamp = DateTime.UtcNow.ToString("o"),
+                    Timestamp = DateTime.UtcNow,
                     IsProxied = true,
                     TargetDomain = targetDomain
                 };
@@ -168,7 +168,7 @@ namespace BackendService
                     StatusCode = (int)response.StatusCode,
                     Headers = SerializeHeaders(response.Headers, response.Content.Headers),
                     Body = responseBody,
-                    Timestamp = DateTime.UtcNow.ToString("o")
+                    Timestamp = DateTime.UtcNow
                 };
                 _dbContext.Responses.Add(responseModel);
                 await _dbContext.SaveChangesAsync();
