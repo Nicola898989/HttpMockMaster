@@ -1,0 +1,9 @@
+﻿################################################################################
+# Il file gitignore è stato creato automaticamente da Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs/MockAMMT/FileContentIndex/054f9717-d02f-471c-ab58-489f99bf4748.vsidx
+/.vs/MockAMMT/FileContentIndex/d0ecaf2f-23ac-4c95-93e7-9393b17f1f2c.vsidx
+/.vs/MockAMMT/DesignTimeBuild
+/BackendService/bin/Debug/net8.0
+*.exe
