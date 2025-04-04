@@ -17,5 +17,12 @@ namespace BackendService.Models
         
         // Navigation property back to the test scenario
         public TestScenario TestScenario { get; set; }
+        
+        // Added for compatibility with tests
+        public int ScenarioId 
+        { 
+            get => TestScenarioId;
+            set => TestScenarioId = value;
+        }
     }
 }

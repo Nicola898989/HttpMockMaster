@@ -255,7 +255,7 @@ namespace BackendService.Controllers
                 }
                 
                 // Start recording in both services
-                _testScenarioService.StartRecording(id);
+                await _testScenarioService.StartRecordingAsync(id);
                 _interceptorService.StartRecording(id);
                 
                 return Ok(new { message = $"Started recording to scenario '{scenario.Name}' (ID: {id})" });
@@ -269,12 +269,12 @@ namespace BackendService.Controllers
         
         // POST: api/TestScenarios/record/stop
         [HttpPost("record/stop")]
-        public IActionResult StopRecording()
+        public async Task<IActionResult> StopRecording()
         {
             try
             {
                 // Stop recording in both services
-                _testScenarioService.StopRecording();
+                await _testScenarioService.StopRecordingAsync();
                 _interceptorService.StopRecording();
                 
                 return Ok(new { message = "Recording stopped" });
@@ -295,11 +295,24 @@ namespace BackendService.Controllers
                 // Get status from TestScenarioService, which is the master source of truth
                 var status = _testScenarioService.GetRecordingStatus();
                 
+                // Use the IsRecording property
+                var isRecording = _testScenarioService.IsRecording;
+                
+                // Extract the scenarioId from the status object
+                var scenarioId = (int?)null;
+                
+                // Extract properties using reflection or dynamic casting
+                var statusType = status.GetType();
+                var scenarioProp = statusType.GetProperty("scenarioId");
+                
+                if (scenarioProp != null)
+                    scenarioId = scenarioProp.GetValue(status) as int?;
+                
                 // Add information about the interceptor
                 var result = new
                 {
-                    isRecording = status.isRecording,
-                    scenarioId = status.scenarioId,
+                    isRecording = isRecording,
+                    scenarioId = scenarioId,
                     interceptorIsRecording = _interceptorService.IsRecording()
                 };
                 

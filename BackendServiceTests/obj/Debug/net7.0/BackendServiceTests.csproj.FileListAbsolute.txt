@@ -1,0 +1,5 @@
+/home/runner/workspace/BackendServiceTests/obj/Debug/net7.0/BackendServiceTests.csproj.AssemblyReference.cache
+/home/runner/workspace/BackendServiceTests/obj/Debug/net7.0/BackendServiceTests.GeneratedMSBuildEditorConfig.editorconfig
+/home/runner/workspace/BackendServiceTests/obj/Debug/net7.0/BackendServiceTests.AssemblyInfoInputs.cache
+/home/runner/workspace/BackendServiceTests/obj/Debug/net7.0/BackendServiceTests.AssemblyInfo.cs
+/home/runner/workspace/BackendServiceTests/obj/Debug/net7.0/BackendServiceTests.csproj.CoreCompileInputs.cache

@@ -15,5 +15,12 @@ namespace BackendService.Models
         
         public int ResponseId { get; set; }
         public HttpResponse Response { get; set; } = null!;
+        
+        // Added for compatibility with tests
+        public string UrlPattern 
+        { 
+            get => PathPattern;
+            set => PathPattern = value;
+        }
     }
 }

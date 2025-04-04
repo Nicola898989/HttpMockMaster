@@ -14,6 +14,8 @@ namespace BackendService
         private readonly ILogger<TestScenarioService> _logger;
         private int? _recordingScenarioId;
 
+        public bool IsRecording => _recordingScenarioId.HasValue;
+
         public TestScenarioService(DatabaseContext context, ILogger<TestScenarioService> logger)
         {
             _context = context;
@@ -22,14 +24,14 @@ namespace BackendService
         }
         
         // Start recording a scenario
-        public void StartRecording(int scenarioId)
+        public async Task StartRecordingAsync(int scenarioId)
         {
             _recordingScenarioId = scenarioId;
             _logger.LogInformation($"Started recording to scenario ID: {scenarioId}");
         }
         
         // Stop recording
-        public void StopRecording()
+        public async Task StopRecordingAsync()
         {
             _recordingScenarioId = null;
             _logger.LogInformation("Stopped recording to test scenario");
@@ -202,7 +204,7 @@ namespace BackendService
         }
 
         // Record a request/response pair to a scenario
-        public async Task<ScenarioStep> RecordRequestResponseAsync(int scenarioId, HttpRequest request, HttpResponse response)
+        public async Task<ScenarioStep> RecordRequestResponseAsync(int scenarioId, BackendService.Models.HttpRequest request, BackendService.Models.HttpResponse response)
         {
             var scenario = await _context.TestScenarios.FindAsync(scenarioId);
             
@@ -213,8 +215,8 @@ namespace BackendService
             }
             
             // Save the request and response
-            _context.Requests.Add(request);
-            _context.Responses.Add(response);
+            _context.HttpRequests.Add(request);
+            _context.HttpResponses.Add(response);
             await _context.SaveChangesAsync();
             
             // Create a new step
@@ -230,9 +232,41 @@ namespace BackendService
             
             return await AddStepToScenarioAsync(scenarioId, step);
         }
+        
+        // Record an interaction when recording is active
+        public async Task RecordInteractionAsync(BackendService.Models.HttpRequest request, BackendService.Models.HttpResponse response)
+        {
+            if (!IsRecording || !_recordingScenarioId.HasValue)
+            {
+                _logger.LogInformation("Not recording, ignoring interaction");
+                return;
+            }
+            
+            await RecordRequestResponseAsync(_recordingScenarioId.Value, request, response);
+            _logger.LogInformation($"Recorded interaction to scenario {_recordingScenarioId.Value}");
+        }
+        
+        // Replay a scenario
+        public async Task<List<ScenarioStep>> ReplayScenarioAsync(int scenarioId)
+        {
+            var scenario = await _context.TestScenarios
+                .Include(ts => ts.Steps)
+                    .ThenInclude(s => s.HttpRequest)
+                .Include(ts => ts.Steps)
+                    .ThenInclude(s => s.HttpResponse)
+                .FirstOrDefaultAsync(ts => ts.Id == scenarioId);
+                
+            if (scenario == null)
+            {
+                _logger.LogWarning($"Test scenario not found for replay: {scenarioId}");
+                return new List<ScenarioStep>();
+            }
+            
+            return scenario.Steps.OrderBy(s => s.Order).ToList();
+        }
 
         // Execute a test scenario (replay all steps)
-        public async Task<List<(HttpRequest, HttpResponse)>> ExecuteScenarioAsync(int scenarioId)
+        public async Task<List<(BackendService.Models.HttpRequest, BackendService.Models.HttpResponse)>> ExecuteScenarioAsync(int scenarioId)
         {
             var scenario = await GetScenarioByIdAsync(scenarioId);
             
@@ -242,7 +276,7 @@ namespace BackendService
                 return null;
             }
             
-            var results = new List<(HttpRequest, HttpResponse)>();
+            var results = new List<(BackendService.Models.HttpRequest, BackendService.Models.HttpResponse)>();
             
             // Order steps by the 'Order' property
             var orderedSteps = scenario.Steps.OrderBy(s => s.Order).ToList();
