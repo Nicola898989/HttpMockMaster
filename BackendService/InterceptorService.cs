@@ -213,7 +213,7 @@ namespace BackendService
                     Method = request.HttpMethod,
                     Headers = SerializeHeaders(request.Headers),
                     Body = await GetRequestBodyAsync(request),
-                    Timestamp = DateTime.UtcNow,
+                    Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"),
                     IsProxied = !string.IsNullOrEmpty(_proxyDomain),
                     TargetDomain = _proxyDomain
                 };
@@ -266,7 +266,7 @@ namespace BackendService
                                         Url = $"{_proxyDomain}{request.Url.PathAndQuery}",  // Usa l'URL del proxy
                                         Headers = requestModel.Headers, // Utilizza gli stessi headers
                                         Body = requestModel.Body,
-                                        Timestamp = DateTime.Now
+                                        Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
                                     };
                                     
                                     // Per la risposta, usa direttamente il responseModel già costruito
@@ -305,7 +305,7 @@ namespace BackendService
                         StatusCode = 404,
                         Body = "No matching rule found for this request.",
                         Headers = "Content-Type: text/plain",
-                        Timestamp = DateTime.UtcNow
+                        Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
                     };
                     _dbContext.Responses.Add(responseModel);
                     await _dbContext.SaveChangesAsync();

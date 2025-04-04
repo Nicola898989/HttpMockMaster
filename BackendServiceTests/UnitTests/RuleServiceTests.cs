@@ -99,7 +99,7 @@ namespace BackendServiceTests.UnitTests
                     StatusCode = 200,
                     Headers = "Content-Type: application/json",
                     Body = "{ \"result\": \"success\" }",
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
                 }
             };
             
@@ -177,7 +177,7 @@ namespace BackendServiceTests.UnitTests
                     StatusCode = 200,
                     Headers = "Content-Type: application/json",
                     Body = "{ \"result\": \"success\" }",
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
                 }
             };
             
@@ -198,10 +198,11 @@ namespace BackendServiceTests.UnitTests
             var responseId = rule.Response.Id;
             
             // Act
-            var result = await _service.DeleteRuleAsync(targetId);
+            await _service.DeleteRuleAsync(targetId);
             
             // Assert
-            Assert.IsTrue(result);
+            var ruleStillExists = await _context.Rules.AnyAsync(r => r.Id == targetId);
+            Assert.IsFalse(ruleStillExists);
             
             // Verificare che la regola sia stata rimossa
             var deletedRule = await _context.Rules.FindAsync(targetId);
@@ -246,7 +247,7 @@ namespace BackendServiceTests.UnitTests
                     StatusCode = 200,
                     Headers = "Content-Type: application/json",
                     Body = "{ \"result\": \"exact match\" }",
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
                 }
             };
             
@@ -285,7 +286,7 @@ namespace BackendServiceTests.UnitTests
                     StatusCode = 200,
                     Headers = "Content-Type: application/json",
                     Body = "{ \"result\": \"partial match\" }",
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
                 }
             };
             
@@ -342,7 +343,7 @@ namespace BackendServiceTests.UnitTests
                     StatusCode = 200,
                     Headers = "Content-Type: application/json",
                     Body = "{ \"result\": \"low priority\" }",
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
                 }
             };
             
@@ -359,7 +360,7 @@ namespace BackendServiceTests.UnitTests
                     StatusCode = 200,
                     Headers = "Content-Type: application/json",
                     Body = "{ \"result\": \"high priority\" }",
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
                 }
             };
             
@@ -399,7 +400,7 @@ namespace BackendServiceTests.UnitTests
                         StatusCode = 200,
                         Headers = "Content-Type: application/json",
                         Body = $"{{ \"result\": \"test{i}\" }}",
-                        Timestamp = DateTime.UtcNow
+                        Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
                     }
                 };
                 

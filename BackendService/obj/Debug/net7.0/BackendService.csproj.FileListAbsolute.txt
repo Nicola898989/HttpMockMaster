@@ -61,3 +61,5 @@
 /home/runner/workspace/BackendService/obj/Debug/net7.0/ref/BackendService.dll
 /home/runner/workspace/BackendService/bin/Debug/net7.0/Npgsql.dll
 /home/runner/workspace/BackendService/bin/Debug/net7.0/Npgsql.EntityFrameworkCore.PostgreSQL.dll
+/home/runner/workspace/BackendService/bin/Debug/net7.0/CsvHelper.dll
+/home/runner/workspace/BackendService/bin/Debug/net7.0/Newtonsoft.Json.dll

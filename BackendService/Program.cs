@@ -254,6 +254,7 @@ namespace BackendService
             services.AddScoped<ProxyService>();
             services.AddScoped<TestScenarioService>();
             services.AddScoped<ExportService>();
+            services.AddScoped<MockResponseLibrary>();
             services.AddSingleton<InterceptorService>();
             services.AddHostedService(provider => provider.GetRequiredService<InterceptorService>());
             

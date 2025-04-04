@@ -114,13 +114,13 @@ namespace BackendService.Controllers
         {
             try
             {
-                var rule = await _ruleService.GetRuleByIdAsync(id);
-                if (rule == null)
+                var result = await _ruleService.DeleteRuleAsync(id);
+                
+                if (!result)
                 {
                     return NotFound();
                 }
 
-                await _ruleService.DeleteRuleAsync(id);
                 return NoContent();
             }
             catch (Exception ex)

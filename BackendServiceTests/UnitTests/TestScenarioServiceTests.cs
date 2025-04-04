@@ -38,11 +38,12 @@ namespace BackendServiceTests.UnitTests
             await SeedTestScenarios();
             
             // Act
-            var scenarios = await _service.GetAllScenariosAsync();
+            var result = await _service.GetAllScenariosAsync();
             
             // Assert
-            Assert.IsNotNull(scenarios);
-            Assert.AreEqual(3, scenarios.Count);
+            Assert.IsNotNull(result.Scenarios);
+            Assert.AreEqual(3, result.Scenarios.Count);
+            Assert.AreEqual(3, result.TotalCount);
         }
         
         [Test]
@@ -83,7 +84,7 @@ namespace BackendServiceTests.UnitTests
             {
                 Name = "Test Scenario",
                 Description = "Test Description",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
             };
             
             // Act
@@ -132,7 +133,7 @@ namespace BackendServiceTests.UnitTests
                 Id = 9999,
                 Name = "Invalid Scenario",
                 Description = "Does not exist",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
             };
             
             // Act
@@ -161,14 +162,14 @@ namespace BackendServiceTests.UnitTests
                         Url = "https://api.example.com/test1",
                         Method = "GET",
                         Headers = "Content-Type: application/json",
-                        Timestamp = DateTime.UtcNow
+                        Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
                     },
                     HttpResponse = new HttpResponse
                     {
                         StatusCode = 200,
                         Headers = "Content-Type: application/json",
                         Body = "{ \"result\": \"test1\" }",
-                        Timestamp = DateTime.UtcNow
+                        Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
                     }
                 },
                 new ScenarioStep
@@ -181,14 +182,14 @@ namespace BackendServiceTests.UnitTests
                         Method = "POST",
                         Headers = "Content-Type: application/json",
                         Body = "{ \"data\": \"test\" }",
-                        Timestamp = DateTime.UtcNow
+                        Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
                     },
                     HttpResponse = new HttpResponse
                     {
                         StatusCode = 201,
                         Headers = "Content-Type: application/json",
                         Body = "{ \"result\": \"test2\" }",
-                        Timestamp = DateTime.UtcNow
+                        Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
                     }
                 }
             };
@@ -235,7 +236,7 @@ namespace BackendServiceTests.UnitTests
             {
                 Name = "Recording Scenario",
                 Description = "For testing recording",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
             };
             
             await _context.TestScenarios.AddAsync(scenario);
@@ -257,7 +258,7 @@ namespace BackendServiceTests.UnitTests
             {
                 Name = "Recording Scenario",
                 Description = "For testing recording",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
             };
             
             await _context.TestScenarios.AddAsync(scenario);
@@ -281,7 +282,7 @@ namespace BackendServiceTests.UnitTests
             {
                 Name = "Recording Scenario",
                 Description = "For testing recording",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
             };
             
             await _context.TestScenarios.AddAsync(scenario);
@@ -294,7 +295,7 @@ namespace BackendServiceTests.UnitTests
                 Url = "https://api.example.com/test",
                 Method = "GET",
                 Headers = "Content-Type: application/json",
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
             };
             
             var response = new HttpResponse
@@ -302,7 +303,7 @@ namespace BackendServiceTests.UnitTests
                 StatusCode = 200,
                 Headers = "Content-Type: application/json",
                 Body = "{ \"result\": \"success\" }",
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
             };
             
             // Salvare request e response nel DB perché hanno bisogno di Id validi
@@ -334,7 +335,7 @@ namespace BackendServiceTests.UnitTests
                 Url = "https://api.example.com/test",
                 Method = "GET",
                 Headers = "Content-Type: application/json",
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
             };
             
             var response = new HttpResponse
@@ -342,7 +343,7 @@ namespace BackendServiceTests.UnitTests
                 StatusCode = 200,
                 Headers = "Content-Type: application/json",
                 Body = "{ \"result\": \"success\" }",
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
             };
             
             // Salvare request e response nel DB perché hanno bisogno di Id validi
@@ -366,7 +367,7 @@ namespace BackendServiceTests.UnitTests
             {
                 Name = "Replay Scenario",
                 Description = "For testing replay",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
             };
             
             await _context.TestScenarios.AddAsync(scenario);
@@ -384,14 +385,14 @@ namespace BackendServiceTests.UnitTests
                         Url = "https://api.example.com/test1",
                         Method = "GET",
                         Headers = "Content-Type: application/json",
-                        Timestamp = DateTime.UtcNow
+                        Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
                     },
                     HttpResponse = new HttpResponse
                     {
                         StatusCode = 200,
                         Headers = "Content-Type: application/json",
                         Body = "{ \"result\": \"test1\" }",
-                        Timestamp = DateTime.UtcNow
+                        Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
                     }
                 },
                 new ScenarioStep
@@ -404,14 +405,14 @@ namespace BackendServiceTests.UnitTests
                         Method = "POST",
                         Headers = "Content-Type: application/json",
                         Body = "{ \"data\": \"test\" }",
-                        Timestamp = DateTime.UtcNow
+                        Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
                     },
                     HttpResponse = new HttpResponse
                     {
                         StatusCode = 201,
                         Headers = "Content-Type: application/json",
                         Body = "{ \"result\": \"test2\" }",
-                        Timestamp = DateTime.UtcNow
+                        Timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
                     }
                 }
             };
@@ -454,7 +455,7 @@ namespace BackendServiceTests.UnitTests
                 {
                     Name = $"Scenario {i}",
                     Description = $"Description {i}",
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
                 };
                 
                 _context.TestScenarios.Add(scenario);

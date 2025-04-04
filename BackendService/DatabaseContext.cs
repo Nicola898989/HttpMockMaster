@@ -11,6 +11,7 @@ namespace BackendService
         public DbSet<Rule> Rules { get; set; } = null!;
         public DbSet<TestScenario> TestScenarios { get; set; } = null!;
         public DbSet<ScenarioStep> ScenarioSteps { get; set; } = null!;
+        public DbSet<ResponseTemplate> ResponseTemplates { get; set; } = null!;
 
         public DatabaseContext(DbContextOptions<DatabaseContext> options)
             : base(options)
@@ -153,6 +154,59 @@ namespace BackendService
                 .WithMany()
                 .HasForeignKey(ss => ss.HttpResponseId)
                 .OnDelete(DeleteBehavior.SetNull);
+                
+            // Configure ResponseTemplate
+            modelBuilder.Entity<ResponseTemplate>()
+                .HasKey(rt => rt.Id);
+                
+            modelBuilder.Entity<ResponseTemplate>()
+                .Property(rt => rt.Name)
+                .IsRequired()
+                .HasMaxLength(100);
+                
+            modelBuilder.Entity<ResponseTemplate>()
+                .HasIndex(rt => rt.Name)
+                .IsUnique();
+                
+            modelBuilder.Entity<ResponseTemplate>()
+                .Property(rt => rt.IsSystem)
+                .IsRequired()
+                .HasDefaultValue(false);
+                
+            modelBuilder.Entity<ResponseTemplate>()
+                .Property(rt => rt.CreatedAt)
+                .IsRequired();
+                
+            if (dbProvider != null && dbProvider.Contains("Sqlite"))
+            {
+                // SQLite configuration for ResponseTemplate
+                modelBuilder.Entity<ResponseTemplate>()
+                    .Property(rt => rt.Body)
+                    .HasColumnType("TEXT");
+                    
+                modelBuilder.Entity<ResponseTemplate>()
+                    .Property(rt => rt.Headers)
+                    .HasColumnType("TEXT");
+                    
+                modelBuilder.Entity<ResponseTemplate>()
+                    .Property(rt => rt.Description)
+                    .HasColumnType("TEXT");
+            }
+            else
+            {
+                // PostgreSQL configuration for ResponseTemplate
+                modelBuilder.Entity<ResponseTemplate>()
+                    .Property(rt => rt.Body)
+                    .HasColumnType("text");
+                    
+                modelBuilder.Entity<ResponseTemplate>()
+                    .Property(rt => rt.Headers)
+                    .HasColumnType("text");
+                    
+                modelBuilder.Entity<ResponseTemplate>()
+                    .Property(rt => rt.Description)
+                    .HasColumnType("text");
+            }
         }
     }
 }

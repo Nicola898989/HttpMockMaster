@@ -60,14 +60,16 @@ namespace BackendService
             return rule;
         }
 
-        public async Task DeleteRuleAsync(int id)
+        public async Task<bool> DeleteRuleAsync(int id)
         {
             var rule = await _dbContext.Rules.FindAsync(id);
             if (rule != null)
             {
                 _dbContext.Rules.Remove(rule);
                 await _dbContext.SaveChangesAsync();
+                return true;
             }
+            return false;
         }
 
         public async Task<Rule?> FindMatchingRuleAsync(HttpListenerRequest request)
