@@ -375,6 +375,7 @@ namespace BackendService
             services.AddScoped<RuleService>();
             services.AddScoped<ProxyService>();
             services.AddScoped<TestScenarioService>();
+            services.AddScoped<ExportService>();
             services.AddSingleton<InterceptorService>();
             services.AddHostedService(provider => provider.GetRequiredService<InterceptorService>());
             

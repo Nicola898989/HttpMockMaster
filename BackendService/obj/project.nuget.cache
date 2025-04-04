@@ -1,9 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "VHhUm/TRliWhG4RDnVVUN6ewqMRMJUUekOQLpShxXB8EGFQ3U9+YJo49Zg+CJGs13miPBQUwYz+0GHGkwhNilg==",
+  "dgSpecHash": "ItMYLKdLCqOfInQDzj7IPBT9k4+MtZCd+TpJPMYcd2RGIvg6pd+S1pXCv4DgUml7c3WQrX054L2/YBTCK5VLvQ==",
   "success": true,
   "projectFilePath": "/home/runner/workspace/BackendService/BackendService.csproj",
   "expectedPackageFiles": [
+    "/home/runner/.nuget/packages/csvhelper/33.0.1/csvhelper.33.0.1.nupkg.sha512",
     "/home/runner/.nuget/packages/humanizer.core/2.14.1/humanizer.core.2.14.1.nupkg.sha512",
     "/home/runner/.nuget/packages/microsoft.data.sqlite.core/7.0.18/microsoft.data.sqlite.core.7.0.18.nupkg.sha512",
     "/home/runner/.nuget/packages/microsoft.entityframeworkcore/7.0.18/microsoft.entityframeworkcore.7.0.18.nupkg.sha512",

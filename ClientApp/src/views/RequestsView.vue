@@ -4,6 +4,14 @@
       <h2>HTTP Requests</h2>
       
       <div class="d-flex">
+        <ExportOptions 
+          class="me-2"
+          :filters="exportFilters"
+          :selectedRequestId="currentRequest ? currentRequest.id : null"
+          @export-start="handleExportStart"
+          @export-success="handleExportSuccess"
+          @export-error="handleExportError"
+        />
         <button class="btn btn-danger me-2" @click="confirmClearRequests">
           <i data-feather="trash-2"></i> Clear All
         </button>
@@ -147,6 +155,8 @@ import { Modal } from 'bootstrap'
 import RequestsList from '../components/RequestsList.vue'
 import RequestDetail from '../components/RequestDetail.vue'
 import RequestFlowVisualization from '../components/RequestFlowVisualization.vue'
+import ExportOptions from '../components/ExportOptions.vue'
+import ExportService from '../services/exportService'
 
 export default {
   name: 'RequestsView',
@@ -154,7 +164,8 @@ export default {
   components: {
     RequestsList,
     RequestDetail,
-    RequestFlowVisualization
+    RequestFlowVisualization,
+    ExportOptions
   },
   
   data() {
@@ -177,6 +188,15 @@ export default {
       'currentResponse',
       'pagination'
     ]),
+    
+    // Filters for export - these are derived from current filters
+    exportFilters() {
+      return {
+        method: this.filters.method || null,
+        url: this.filters.url || null,
+        isProxied: this.filters.isProxied
+      }
+    },
     
     currentPage() {
       return this.pagination.currentPage
@@ -247,6 +267,60 @@ export default {
       'applyFilters',
       'clearFilters'
     ]),
+    
+    // Export event handlers
+    handleExportStart() {
+      this.$store.dispatch('setLoading', true);
+    },
+    
+    handleExportSuccess() {
+      this.$store.dispatch('setLoading', false);
+      this.$store.dispatch('clearError');
+    },
+    
+    handleExportError(error) {
+      this.$store.dispatch('setLoading', false);
+      this.$store.dispatch('setError', `Errore durante l'esportazione: ${error.message || 'Errore sconosciuto'}`);
+    },
+    
+    // Export methods
+    async exportAsJson() {
+      try {
+        const exportService = new ExportService();
+        const blob = await exportService.exportAsJson(this.exportFilters);
+        exportService.downloadFile(blob, `requests_export_${new Date().toISOString().split('T')[0]}.json`);
+      } catch (error) {
+        console.error('Error exporting as JSON:', error);
+        this.$store.dispatch('setError', 'Errore durante l\'esportazione in formato JSON');
+      }
+    },
+    
+    async exportAsCsv() {
+      try {
+        const exportService = new ExportService();
+        const blob = await exportService.exportAsCsv(this.exportFilters);
+        exportService.downloadFile(blob, `requests_export_${new Date().toISOString().split('T')[0]}.csv`);
+      } catch (error) {
+        console.error('Error exporting as CSV:', error);
+        this.$store.dispatch('setError', 'Errore durante l\'esportazione in formato CSV');
+      }
+    },
+    
+    async exportCurrentRequest() {
+      if (!this.currentRequest) {
+        this.$store.dispatch('setError', 'Nessuna richiesta selezionata da esportare');
+        return;
+      }
+      
+      try {
+        const exportService = new ExportService();
+        const blob = await exportService.exportRequestDetails(this.currentRequest.id);
+        exportService.downloadFile(blob, `request_${this.currentRequest.id}_${new Date().toISOString().split('T')[0]}.json`);
+      } catch (error) {
+        console.error('Error exporting request details:', error);
+        this.$store.dispatch('setError', 'Errore durante l\'esportazione dei dettagli della richiesta');
+      }
+    },
     
     refreshRequests() {
       this.fetchRequests()
