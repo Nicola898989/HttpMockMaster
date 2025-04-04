@@ -10,6 +10,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@vue/cli": "^5.0.8",
+    "@vue/cli-service": "^5.0.8",
     "axios": "^1.8.4",
     "bootstrap": "^5.3.4",
     "chart.js": "^4.4.8",

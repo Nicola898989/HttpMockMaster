@@ -44,6 +44,12 @@
             </router-link>
           </li>
           <li class="nav-item">
+            <router-link class="nav-link" to="/comparison" active-class="active">
+              <i data-feather="git-pull-request" class="feather-icon"></i>
+              Comparison
+            </router-link>
+          </li>
+          <li class="nav-item">
             <router-link class="nav-link" to="/settings" active-class="active">
               <i data-feather="settings" class="feather-icon"></i>
               Settings

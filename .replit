@@ -15,6 +15,10 @@ author = "agent"
 task = "workflow.run"
 args = "Backend Service"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Frontend"
+
 [[workflows.workflow]]
 name = "Backend Service"
 author = "agent"
@@ -29,6 +33,21 @@ task = "packager.installForAll"
 task = "shell.exec"
 args = "dotnet run --project BackendService"
 waitForPort = 8888
+
+[[workflows.workflow]]
+name = "Frontend"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd ClientApp && npm run serve"
+waitForPort = 8080
 
 [deployment]
 run = ["sh", "-c", "dotnet run --project BackendService"]

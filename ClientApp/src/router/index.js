@@ -5,6 +5,7 @@ import ProxyView from '../views/ProxyView.vue'
 import SettingsView from '../views/SettingsView.vue'
 import TopologyView from '../views/TopologyView.vue'
 import PerformanceView from '../views/PerformanceView.vue'
+import ComparisonView from '../views/ComparisonView.vue'
 
 const routes = [
   {
@@ -40,6 +41,11 @@ const routes = [
     path: '/settings',
     name: 'Settings',
     component: SettingsView
+  },
+  {
+    path: '/comparison',
+    name: 'Comparison',
+    component: ComparisonView
   }
 ]
 
