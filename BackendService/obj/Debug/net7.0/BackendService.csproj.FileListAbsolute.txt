@@ -59,3 +59,5 @@
 /home/runner/workspace/BackendService/obj/Debug/net7.0/BackendService.pdb
 /home/runner/workspace/BackendService/obj/Debug/net7.0/BackendService.genruntimeconfig.cache
 /home/runner/workspace/BackendService/obj/Debug/net7.0/ref/BackendService.dll
+/home/runner/workspace/BackendService/bin/Debug/net7.0/Npgsql.dll
+/home/runner/workspace/BackendService/bin/Debug/net7.0/Npgsql.EntityFrameworkCore.PostgreSQL.dll

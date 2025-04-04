@@ -34,13 +34,30 @@ namespace BackendService
                 .IsRequired()
                 .HasMaxLength(10);  // GET, POST, PUT, etc.
 
-            modelBuilder.Entity<Models.HttpRequest>()
-                .Property(r => r.Headers)
-                .HasColumnType("TEXT");
+            // Use text columns for JSON data, but ensure compatibility with PostgreSQL
+            var dbProvider = Database.ProviderName;
+            if (dbProvider != null && dbProvider.Contains("Sqlite"))
+            {
+                // SQLite configuration
+                modelBuilder.Entity<Models.HttpRequest>()
+                    .Property(r => r.Headers)
+                    .HasColumnType("TEXT");
 
-            modelBuilder.Entity<Models.HttpRequest>()
-                .Property(r => r.Body)
-                .HasColumnType("TEXT");
+                modelBuilder.Entity<Models.HttpRequest>()
+                    .Property(r => r.Body)
+                    .HasColumnType("TEXT");
+            }
+            else
+            {
+                // PostgreSQL configuration
+                modelBuilder.Entity<Models.HttpRequest>()
+                    .Property(r => r.Headers)
+                    .HasColumnType("text");
+
+                modelBuilder.Entity<Models.HttpRequest>()
+                    .Property(r => r.Body)
+                    .HasColumnType("text");
+            }
                 
             // Add indexes for better query performance
             modelBuilder.Entity<Models.HttpRequest>()
@@ -60,13 +77,28 @@ namespace BackendService
                 .Property(r => r.StatusCode)
                 .IsRequired();
 
-            modelBuilder.Entity<Models.HttpResponse>()
-                .Property(r => r.Headers)
-                .HasColumnType("TEXT");
+            if (dbProvider != null && dbProvider.Contains("Sqlite"))
+            {
+                // SQLite configuration for HttpResponse
+                modelBuilder.Entity<Models.HttpResponse>()
+                    .Property(r => r.Headers)
+                    .HasColumnType("TEXT");
 
-            modelBuilder.Entity<Models.HttpResponse>()
-                .Property(r => r.Body)
-                .HasColumnType("TEXT");
+                modelBuilder.Entity<Models.HttpResponse>()
+                    .Property(r => r.Body)
+                    .HasColumnType("TEXT");
+            }
+            else
+            {
+                // PostgreSQL configuration for HttpResponse
+                modelBuilder.Entity<Models.HttpResponse>()
+                    .Property(r => r.Headers)
+                    .HasColumnType("text");
+
+                modelBuilder.Entity<Models.HttpResponse>()
+                    .Property(r => r.Body)
+                    .HasColumnType("text");
+            }
 
             // Configure Rule
             modelBuilder.Entity<Rule>()

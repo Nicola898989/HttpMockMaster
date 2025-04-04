@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "2SbvxGpFUSE3U73+CSvcpoOC60l8t81ZJGnXQ0kkgb1s4tpG27NrtoPSFuGDHIs6/Wt2t17UW4HE6g7zrRXZ9Q==",
+  "dgSpecHash": "VHhUm/TRliWhG4RDnVVUN6ewqMRMJUUekOQLpShxXB8EGFQ3U9+YJo49Zg+CJGs13miPBQUwYz+0GHGkwhNilg==",
   "success": true,
   "projectFilePath": "/home/runner/workspace/BackendService/BackendService.csproj",
   "expectedPackageFiles": [
@@ -24,6 +24,8 @@
     "/home/runner/.nuget/packages/microsoft.extensions.options/7.0.0/microsoft.extensions.options.7.0.0.nupkg.sha512",
     "/home/runner/.nuget/packages/microsoft.extensions.primitives/7.0.0/microsoft.extensions.primitives.7.0.0.nupkg.sha512",
     "/home/runner/.nuget/packages/mono.texttemplating/2.2.1/mono.texttemplating.2.2.1.nupkg.sha512",
+    "/home/runner/.nuget/packages/npgsql/7.0.6/npgsql.7.0.6.nupkg.sha512",
+    "/home/runner/.nuget/packages/npgsql.entityframeworkcore.postgresql/7.0.11/npgsql.entityframeworkcore.postgresql.7.0.11.nupkg.sha512",
     "/home/runner/.nuget/packages/sqlitepclraw.bundle_e_sqlite3/2.1.4/sqlitepclraw.bundle_e_sqlite3.2.1.4.nupkg.sha512",
     "/home/runner/.nuget/packages/sqlitepclraw.core/2.1.4/sqlitepclraw.core.2.1.4.nupkg.sha512",
     "/home/runner/.nuget/packages/sqlitepclraw.lib.e_sqlite3/2.1.4/sqlitepclraw.lib.e_sqlite3.2.1.4.nupkg.sha512",
