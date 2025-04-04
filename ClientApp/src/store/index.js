@@ -3,6 +3,7 @@ import requestsModule from './modules/requests'
 import rulesModule from './modules/rules'
 import proxyModule from './modules/proxy'
 import topologyModule from './modules/topology'
+import comparisonModule from './modules/comparison'
 
 export default createStore({
   state: {
@@ -35,6 +36,7 @@ export default createStore({
     requests: requestsModule,
     rules: rulesModule,
     proxy: proxyModule,
-    topology: topologyModule
+    topology: topologyModule,
+    comparison: comparisonModule
   }
 })

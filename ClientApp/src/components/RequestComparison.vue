@@ -192,7 +192,6 @@
 </template>
 
 <script>
-import axios from 'axios';
 
 export default {
   name: 'RequestComparison',
@@ -247,11 +246,15 @@ export default {
       this.comparisonResult = null;
       
       try {
-        const response = await axios.post('/api/comparison/requests', this.selectedRequests);
-        this.comparisonResult = response.data;
+        const result = await this.$store.dispatch('comparison/compareRequests', this.selectedRequests);
+        if (result) {
+          this.comparisonResult = result;
+        } else {
+          this.error = this.$store.state.comparison.error;
+        }
       } catch (error) {
         console.error('Errore durante il confronto delle richieste:', error);
-        this.error = error.response?.data || 'Si è verificato un errore durante il confronto';
+        this.error = 'Si è verificato un errore durante il confronto';
       } finally {
         this.isLoading = false;
       }
@@ -268,14 +271,19 @@ export default {
       this.jsonDiffResult = null;
       
       try {
-        const response = await axios.post('/api/comparison/json', {
+        const result = await this.$store.dispatch('comparison/compareJson', {
           json1: this.jsonInput.json1,
           json2: this.jsonInput.json2
         });
-        this.jsonDiffResult = response.data;
+        
+        if (result) {
+          this.jsonDiffResult = result;
+        } else {
+          this.error = this.$store.state.comparison.error;
+        }
       } catch (error) {
         console.error('Errore durante il confronto JSON:', error);
-        this.error = error.response?.data || 'Si è verificato un errore durante il confronto JSON';
+        this.error = 'Si è verificato un errore durante il confronto JSON';
       } finally {
         this.isJsonComparing = false;
       }
