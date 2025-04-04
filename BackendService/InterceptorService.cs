@@ -93,32 +93,110 @@ namespace BackendService
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            // Setup listener
+            // Setup listener with improved error handling e ambiente Replit-safe
             string prefix = $"http://+:{_port}/";
-            _listener.Prefixes.Add(prefix);
-            _listener.Start();
-            _logger.LogInformation($"Interceptor started listening on {prefix}");
-
-            while (!stoppingToken.IsCancellationRequested)
+            
+            try 
             {
-                try
+                // Verifichiamo se siamo in ambiente Replit
+                bool isReplitEnv = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("REPL_ID"));
+                
+                if (isReplitEnv)
                 {
-                    var context = await _listener.GetContextAsync();
-                    // Process the request asynchronously
-                    _ = Task.Run(() => ProcessRequestAsync(context), stoppingToken);
+                    _logger.LogWarning("Rilevato ambiente Replit: HttpListener potrebbe non funzionare correttamente.");
+                    _logger.LogInformation("Attivazione dell'intercettore in modalità compatibilità Replit...");
+                    
+                    // In Replit, tentiamo di utilizzare un indirizzo più specifico anziché il wildcard
+                    _listener.Prefixes.Clear();
+                    _listener.Prefixes.Add($"http://127.0.0.1:{_port}/");
+                    
+                    // Utilizziamo un pattern di retry limitato per non bloccare l'avvio
+                    int maxRetries = 3;
+                    for (int retry = 0; retry < maxRetries; retry++)
+                    {
+                        try
+                        {
+                            _listener.Start();
+                            _logger.LogInformation($"Interceptor avviato su http://127.0.0.1:{_port}/ (tentativo {retry + 1})");
+                            break;
+                        }
+                        catch (Exception ex) when (retry < maxRetries - 1)
+                        {
+                            _logger.LogWarning($"Tentativo {retry + 1} fallito: {ex.Message}, riprovando...");
+                            await Task.Delay(500, stoppingToken); // Breve attesa tra tentativi
+                        }
+                    }
                 }
-                catch (Exception ex)
+                else
                 {
-                    _logger.LogError(ex, "Error while handling HTTP request");
+                    // In ambienti non-Replit, comportamento normale
+                    _listener.Prefixes.Add(prefix);
+                    _listener.Start();
+                    _logger.LogInformation($"Interceptor avviato su {prefix}");
+                }
+                
+                // Loop principale di ascolto
+                while (!stoppingToken.IsCancellationRequested && _listener.IsListening)
+                {
+                    try
+                    {
+                        // Utilizziamo un timeout per evitare blocchi indefiniti
+                        var timeoutTask = Task.Delay(5000, stoppingToken); // 5 secondi di timeout
+                        var contextTask = _listener.GetContextAsync();
+                        
+                        var completedTask = await Task.WhenAny(contextTask, timeoutTask);
+                        
+                        if (completedTask == contextTask)
+                        {
+                            var context = await contextTask;
+                            // Process the request asynchronously with explicit exception handling
+                            _ = Task.Run(async () => {
+                                try {
+                                    await ProcessRequestAsync(context);
+                                }
+                                catch (Exception ex) {
+                                    _logger.LogError(ex, "Errore nel processare la richiesta");
+                                }
+                            }, stoppingToken);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Errore durante la gestione della richiesta HTTP");
+                        // Breve pausa per evitare cicli di errore troppo rapidi
+                        await Task.Delay(500, stoppingToken);
+                    }
                 }
             }
-
-            _listener.Stop();
-            _listener.Close();
-            _logger.LogInformation("Interceptor stopped");
-            
-            // Return to complete the task
-            return;
+            catch (HttpListenerException ex)
+            {
+                _logger.LogError(ex, "Errore nell'avvio dell'HttpListener. Probabile mancanza di privilegi o porta già in uso.");
+                _logger.LogWarning("L'intercettore HTTP non è stato avviato, ma il servizio REST API continuerà a funzionare.");
+                
+                // Simuliamo un task attivo per mantenere il servizio in esecuzione
+                try
+                {
+                    await Task.Delay(-1, stoppingToken);
+                }
+                catch (TaskCanceledException)
+                {
+                    // Normale durante lo shutdown, ignoriamo
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Errore critico nell'intercettore");
+            }
+            finally
+            {
+                // Cleanup
+                if (_listener.IsListening)
+                {
+                    _listener.Stop();
+                    _listener.Close();
+                }
+                _logger.LogInformation("Interceptor fermato");
+            }
         }
 
         private async Task ProcessRequestAsync(HttpListenerContext context)

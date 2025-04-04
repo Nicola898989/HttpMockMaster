@@ -173,7 +173,7 @@ namespace BackendService.Controllers
             public double P99 { get; set; }
         }
 
-        private ResponseTimeMetrics CalculateResponseTimeMetrics(List<HttpRequestModel> requests)
+        private ResponseTimeMetrics CalculateResponseTimeMetrics(List<BackendService.Models.HttpRequest> requests)
         {
             // Calcolare i tempi di risposta (differenza tra timestamp della risposta e della richiesta)
             var responseTimes = new List<double>();
@@ -230,7 +230,7 @@ namespace BackendService.Controllers
             public SizeMetrics Response { get; set; }
         }
         
-        private RequestSizeMetrics CalculateRequestSizeMetrics(List<HttpRequestModel> requests)
+        private RequestSizeMetrics CalculateRequestSizeMetrics(List<BackendService.Models.HttpRequest> requests)
         {
             // Calcolare le dimensioni delle richieste e risposte
             var requestSizes = new List<int>();
@@ -275,7 +275,7 @@ namespace BackendService.Controllers
             public double AvgResponseTime { get; set; }
         }
 
-        private List<MethodMetric> CalculateMethodMetrics(List<HttpRequestModel> requests)
+        private List<MethodMetric> CalculateMethodMetrics(List<BackendService.Models.HttpRequest> requests)
         {
             // Contare le richieste per metodo HTTP
             var methodCounts = requests
@@ -310,7 +310,7 @@ namespace BackendService.Controllers
             public double Percentage { get; set; }
         }
 
-        private List<StatusCodeMetric> CalculateStatusCodeMetrics(List<HttpRequestModel> requests)
+        private List<StatusCodeMetric> CalculateStatusCodeMetrics(List<BackendService.Models.HttpRequest> requests)
         {
             // Contare le risposte per codice di stato HTTP
             var statusCounts = requests
@@ -336,7 +336,7 @@ namespace BackendService.Controllers
             public double SuccessRate { get; set; }
         }
 
-        private List<TimeSeriesPoint> GroupRequestsByTimeInterval(List<HttpRequestModel> requests, string? groupBy, DateTime startDate, DateTime endDate)
+        private List<TimeSeriesPoint> GroupRequestsByTimeInterval(List<BackendService.Models.HttpRequest> requests, string? groupBy, DateTime startDate, DateTime endDate)
         {
             // Determinare l'intervallo di tempo per il raggruppamento
             TimeSpan interval = groupBy?.ToLower() switch

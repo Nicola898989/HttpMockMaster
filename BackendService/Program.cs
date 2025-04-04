@@ -50,166 +50,43 @@ namespace BackendService
             
             var app = builder.Build();
             
-            // Apply migrations and create database on startup
+            // Configurazione del database più leggera per l'ambiente di Replit
             using (var scope = app.Services.CreateScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<DatabaseContext>();
-                Console.WriteLine("Ensuring database is created...");
-                db.Database.EnsureCreated();
-                Console.WriteLine("Applying migrations...");
+                Console.WriteLine("Initializing database...");
+                
                 try 
                 {
-                    db.Database.Migrate();
-                    Console.WriteLine("Migrations applied successfully");
+                    // Utilizziamo solo EnsureCreated per evitare la complessità delle migrazioni
+                    // Questo è più veloce e adatto per ambienti di sviluppo/test
+                    if (db.Database.EnsureCreated())
+                    {
+                        Console.WriteLine("Database creato con successo");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Database già esistente, utilizzo schema corrente");
+                    }
                 } 
                 catch (Exception ex) 
                 {
-                    Console.WriteLine($"Error applying migrations: {ex.Message}");
-                    Console.WriteLine("Attempting to create tables manually...");
+                    Console.WriteLine($"Errore durante l'inizializzazione del database: {ex.Message}");
                     
-                    // Manual table creation if migrations fail
-                    try
+                    // In caso di errore forniamo informazioni più dettagliate ma non tentiamo 
+                    // operazioni pesanti di fallback che potrebbero causare timeout
+                    var dbProvider = db.Database.ProviderName;
+                    var connectionString = db.Database.GetConnectionString();
+                    
+                    Console.WriteLine($"Provider database: {dbProvider ?? "Sconosciuto"}");
+                    if (connectionString != null)
                     {
-                        var conn = db.Database.GetDbConnection();
-                        if (conn.State != System.Data.ConnectionState.Open)
-                            conn.Open();
+                        // Mostra parte della connessione per diagnostica senza esporre credenziali
+                        var sanitizedConnectionString = connectionString.Contains(";") 
+                            ? string.Join(";", connectionString.Split(';').Take(2).Append("..."))
+                            : "[Mascherato per sicurezza]";
                         
-                        using (var cmd = conn.CreateCommand())
-                        {
-                            var isPostgres = Environment.GetEnvironmentVariable("DATABASE_URL") != null;
-                            
-                            if (isPostgres)
-                            {
-                                // PostgreSQL schema creation
-                                cmd.CommandText = @"
-                                    CREATE TABLE IF NOT EXISTS ""Requests"" (
-                                        ""Id"" SERIAL PRIMARY KEY,
-                                        ""Url"" TEXT NOT NULL,
-                                        ""Method"" TEXT NOT NULL,
-                                        ""Headers"" TEXT,
-                                        ""Body"" TEXT,
-                                        ""Timestamp"" TEXT NOT NULL,
-                                        ""IsProxied"" BOOLEAN NOT NULL,
-                                        ""TargetDomain"" TEXT
-                                    );
-                                    
-                                    CREATE TABLE IF NOT EXISTS ""Responses"" (
-                                        ""Id"" SERIAL PRIMARY KEY,
-                                        ""RequestId"" INTEGER,
-                                        ""StatusCode"" INTEGER NOT NULL,
-                                        ""Headers"" TEXT,
-                                        ""Body"" TEXT,
-                                        ""Timestamp"" TEXT NOT NULL
-                                    );
-                                    
-                                    CREATE TABLE IF NOT EXISTS ""Rules"" (
-                                        ""Id"" SERIAL PRIMARY KEY,
-                                        ""Name"" TEXT NOT NULL,
-                                        ""Description"" TEXT,
-                                        ""Method"" TEXT,
-                                        ""PathPattern"" TEXT,
-                                        ""QueryPattern"" TEXT,
-                                        ""HeaderPattern"" TEXT,
-                                        ""BodyPattern"" TEXT,
-                                        ""Priority"" INTEGER NOT NULL,
-                                        ""IsActive"" BOOLEAN NOT NULL,
-                                        ""ResponseId"" INTEGER NOT NULL,
-                                        FOREIGN KEY (""ResponseId"") REFERENCES ""Responses""(""Id"") ON DELETE CASCADE
-                                    );
-                                    
-                                    CREATE TABLE IF NOT EXISTS ""TestScenarios"" (
-                                        ""Id"" SERIAL PRIMARY KEY,
-                                        ""Name"" TEXT NOT NULL,
-                                        ""Description"" TEXT,
-                                        ""CreatedAt"" TEXT NOT NULL,
-                                        ""LastRunAt"" TEXT,
-                                        ""IsActive"" BOOLEAN NOT NULL DEFAULT TRUE
-                                    );
-                                    
-                                    CREATE TABLE IF NOT EXISTS ""ScenarioSteps"" (
-                                        ""Id"" SERIAL PRIMARY KEY,
-                                        ""TestScenarioId"" INTEGER NOT NULL,
-                                        ""HttpRequestId"" INTEGER,
-                                        ""HttpResponseId"" INTEGER,
-                                        ""Name"" TEXT NOT NULL,
-                                        ""Description"" TEXT,
-                                        ""Order"" INTEGER NOT NULL,
-                                        ""IsActive"" BOOLEAN NOT NULL DEFAULT TRUE,
-                                        FOREIGN KEY (""TestScenarioId"") REFERENCES ""TestScenarios""(""Id"") ON DELETE CASCADE,
-                                        FOREIGN KEY (""HttpRequestId"") REFERENCES ""Requests""(""Id"") ON DELETE SET NULL,
-                                        FOREIGN KEY (""HttpResponseId"") REFERENCES ""Responses""(""Id"") ON DELETE SET NULL
-                                    );";
-                            }
-                            else
-                            {
-                                // SQLite schema creation
-                                cmd.CommandText = @"
-                                    CREATE TABLE IF NOT EXISTS Requests (
-                                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                        Url TEXT NOT NULL,
-                                        Method TEXT NOT NULL,
-                                        Headers TEXT,
-                                        Body TEXT,
-                                        Timestamp TEXT NOT NULL,
-                                        IsProxied INTEGER NOT NULL,
-                                        TargetDomain TEXT
-                                    );
-                                    
-                                    CREATE TABLE IF NOT EXISTS Responses (
-                                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                        RequestId INTEGER,
-                                        StatusCode INTEGER NOT NULL,
-                                        Headers TEXT,
-                                        Body TEXT,
-                                        Timestamp TEXT NOT NULL
-                                    );
-                                    
-                                    CREATE TABLE IF NOT EXISTS Rules (
-                                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                        Name TEXT NOT NULL,
-                                        Description TEXT,
-                                        Method TEXT,
-                                        PathPattern TEXT,
-                                        QueryPattern TEXT,
-                                        HeaderPattern TEXT,
-                                        BodyPattern TEXT,
-                                        Priority INTEGER NOT NULL,
-                                        IsActive INTEGER NOT NULL,
-                                        ResponseId INTEGER NOT NULL,
-                                        FOREIGN KEY (ResponseId) REFERENCES Responses(Id) ON DELETE CASCADE
-                                    );
-                                    
-                                    CREATE TABLE IF NOT EXISTS TestScenarios (
-                                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                        Name TEXT NOT NULL,
-                                        Description TEXT,
-                                        CreatedAt TEXT NOT NULL,
-                                        LastRunAt TEXT,
-                                        IsActive INTEGER NOT NULL DEFAULT 1
-                                    );
-                                    
-                                    CREATE TABLE IF NOT EXISTS ScenarioSteps (
-                                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                        TestScenarioId INTEGER NOT NULL,
-                                        HttpRequestId INTEGER,
-                                        HttpResponseId INTEGER,
-                                        Name TEXT NOT NULL,
-                                        Description TEXT,
-                                        Order INTEGER NOT NULL,
-                                        IsActive INTEGER NOT NULL DEFAULT 1,
-                                        FOREIGN KEY (TestScenarioId) REFERENCES TestScenarios(Id) ON DELETE CASCADE,
-                                        FOREIGN KEY (HttpRequestId) REFERENCES Requests(Id) ON DELETE SET NULL,
-                                        FOREIGN KEY (HttpResponseId) REFERENCES Responses(Id) ON DELETE SET NULL
-                                    );";
-                            }
-                            
-                            cmd.ExecuteNonQuery();
-                        }
-                        Console.WriteLine("Tables created manually successfully");
-                    }
-                    catch (Exception manualEx)
-                    {
-                        Console.WriteLine($"Failed to create tables manually: {manualEx.Message}");
+                        Console.WriteLine($"Connessione (parziale): {sanitizedConnectionString}");
                     }
                 }
             }
