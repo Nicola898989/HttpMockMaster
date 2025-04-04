@@ -76,6 +76,12 @@ namespace BackendService
             modelBuilder.Entity<Models.HttpResponse>()
                 .Property(r => r.StatusCode)
                 .IsRequired();
+                
+            // Configura la relazione tra HttpRequest e HttpResponse
+            modelBuilder.Entity<Models.HttpResponse>()
+                .HasOne(r => r.Request)
+                .WithOne(r => r.Response)
+                .HasForeignKey<Models.HttpResponse>(r => r.RequestId);
 
             if (dbProvider != null && dbProvider.Contains("Sqlite"))
             {

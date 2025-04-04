@@ -9,8 +9,11 @@ namespace BackendService.Models
         public string Method { get; set; } = string.Empty;
         public string Headers { get; set; } = string.Empty;
         public string Body { get; set; } = string.Empty;
-        public DateTime Timestamp { get; set; }
+        public string Timestamp { get; set; } = string.Empty;
         public bool IsProxied { get; set; }
         public string TargetDomain { get; set; } = string.Empty;
+        
+        // Navigational property per la risposta
+        public virtual HttpResponse? Response { get; set; }
     }
 }

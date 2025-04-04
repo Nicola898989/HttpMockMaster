@@ -665,7 +665,7 @@ namespace BackendService
                             StatusCode = (int)httpResponse.StatusCode,
                             Headers = string.Join("\n", httpResponse.Headers.Select(h => $"{h.Key}: {string.Join(", ", h.Value)}")),
                             Body = await httpResponse.Content.ReadAsStringAsync(),
-                            Timestamp = DateTime.UtcNow,
+                            Timestamp = DateTime.UtcNow.ToString("o"),
                             RequestId = request.Id
                         };
                         
@@ -683,7 +683,7 @@ namespace BackendService
                             StatusCode = 500,
                             Headers = "Content-Type: application/json",
                             Body = $"{{ \"error\": \"{ex.Message}\" }}",
-                            Timestamp = DateTime.UtcNow,
+                            Timestamp = DateTime.UtcNow.ToString("o"),
                             RequestId = request.Id
                         };
                         

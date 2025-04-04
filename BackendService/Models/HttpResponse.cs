@@ -9,6 +9,9 @@ namespace BackendService.Models
         public int StatusCode { get; set; }
         public string Headers { get; set; } = string.Empty;
         public string Body { get; set; } = string.Empty;
-        public DateTime Timestamp { get; set; }
+        public string Timestamp { get; set; } = string.Empty;
+        
+        // Navigational property per la richiesta
+        public virtual HttpRequest? Request { get; set; }
     }
 }
