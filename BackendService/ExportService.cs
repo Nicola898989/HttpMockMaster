@@ -1,239 +1,192 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using BackendService.Models;
 
 namespace BackendService
 {
     public class ExportService
     {
-        private readonly DatabaseContext _context;
+        private readonly DatabaseContext _dbContext;
         private readonly ILogger<ExportService> _logger;
         
-        public ExportService(DatabaseContext context, ILogger<ExportService> logger)
+        public ExportService(DatabaseContext dbContext, ILogger<ExportService> logger)
         {
-            _context = context;
+            _dbContext = dbContext;
             _logger = logger;
         }
         
         /// <summary>
-        /// Esporta le richieste in formato JSON con filtri opzionali
+        /// Esporta le richieste HTTP come JSON in base ai filtri specificati
         /// </summary>
         public async Task<byte[]> ExportRequestsAsJsonAsync(
-            int? page = null, 
-            int? pageSize = null, 
             DateTime? fromDate = null, 
             DateTime? toDate = null, 
-            string method = null, 
-            string host = null)
+            string? method = null, 
+            string? host = null)
         {
+            _logger.LogInformation("Esportazione richieste come JSON");
+            
             try
             {
-                _logger.LogInformation("Esportazione richieste in formato JSON");
+                var requests = await GetFilteredRequestsAsync(fromDate, toDate, method, host);
                 
-                var requests = await GetFilteredRequests(fromDate, toDate, method, host)
-                    .OrderByDescending(r => r.Timestamp)
-                    .Select(r => new 
-                    {
-                        r.Id,
-                        r.Method,
-                        r.Url,
-                        r.Host,
-                        r.Path,
-                        r.QueryString,
-                        r.Headers,
-                        r.Timestamp,
-                        r.IsProxied,
-                        ContentSize = r.Content?.Length ?? 0,
-                        r.ContentType,
-                        HasResponse = r.Response != null,
-                        ResponseStatus = r.Response != null ? r.Response.StatusCode : null,
-                        ResponseTime = r.Response != null ? r.Response.ResponseTime : null
-                    })
-                    .ToListAsync();
-                
-                _logger.LogInformation($"Esportate {requests.Count} richieste in formato JSON");
-                
-                // Paginazione se richiesta
-                if (page.HasValue && pageSize.HasValue)
+                // Semplifica i dati per l'esportazione, escludendo le proprietà cicliche
+                var exportData = requests.Select(r => new
                 {
-                    int skip = (page.Value - 1) * pageSize.Value;
-                    requests = requests.Skip(skip).Take(pageSize.Value).ToList();
-                    _logger.LogInformation($"Applicata paginazione (page: {page}, pageSize: {pageSize}, records: {requests.Count})");
-                }
+                    r.Id,
+                    r.Url,
+                    r.Method,
+                    r.Host,
+                    r.Path,
+                    r.QueryString,
+                    r.Headers,
+                    r.Body,
+                    r.ContentType,
+                    r.Date,
+                    r.IsProxied,
+                    ResponseStatusCode = r.Response != null ? r.Response.StatusCode : null,
+                    ResponseHeaders = r.Response != null ? r.Response.Headers : null,
+                    ResponseBody = r.Response != null ? r.Response.Body : null,
+                    ResponseContentType = r.Response != null ? r.Response.ContentType : null
+                });
                 
-                var options = new JsonSerializerOptions
-                {
-                    WriteIndented = true,
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                };
-                
-                return JsonSerializer.SerializeToUtf8Bytes(requests, options);
+                var json = JsonConvert.SerializeObject(exportData, Formatting.Indented);
+                return Encoding.UTF8.GetBytes(json);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Errore durante l'esportazione JSON: {ex.Message}");
+                _logger.LogError(ex, "Errore durante l'esportazione JSON");
                 throw;
             }
         }
         
         /// <summary>
-        /// Esporta le richieste in formato CSV con filtri opzionali
+        /// Esporta le richieste HTTP come CSV in base ai filtri specificati
         /// </summary>
         public async Task<byte[]> ExportRequestsAsCsvAsync(
             DateTime? fromDate = null, 
             DateTime? toDate = null, 
-            string method = null, 
-            string host = null)
+            string? method = null, 
+            string? host = null)
         {
+            _logger.LogInformation("Esportazione richieste come CSV");
+            
             try
             {
-                _logger.LogInformation("Esportazione richieste in formato CSV");
+                var requests = await GetFilteredRequestsAsync(fromDate, toDate, method, host);
                 
-                var requests = await GetFilteredRequests(fromDate, toDate, method, host)
-                    .OrderByDescending(r => r.Timestamp)
-                    .Select(r => new 
-                    {
-                        r.Id,
-                        r.Method,
-                        r.Url,
-                        r.Host,
-                        r.Path,
-                        r.Timestamp,
-                        r.IsProxied,
-                        ContentSize = r.Content?.Length ?? 0,
-                        r.ContentType,
-                        ResponseStatus = r.Response != null ? r.Response.StatusCode : null,
-                        ResponseTime = r.Response != null ? r.Response.ResponseTime : null
-                    })
-                    .ToListAsync();
+                using var memoryStream = new MemoryStream();
+                using var writer = new StreamWriter(memoryStream, Encoding.UTF8);
                 
-                _logger.LogInformation($"Esportate {requests.Count} richieste in formato CSV");
+                // Intestazioni CSV
+                writer.WriteLine("ID,Data,Metodo,Host,Percorso,IsProxied,Stato Risposta");
                 
-                // Creazione dell'header CSV
-                var csv = new StringBuilder();
-                csv.AppendLine("ID,Method,URL,Host,Path,Timestamp,IsProxied,ContentSize,ContentType,ResponseStatus,ResponseTime");
-                
-                // Aggiunta delle righe di dati
-                foreach (var req in requests)
+                // Dati
+                foreach (var request in requests)
                 {
-                    csv.AppendLine(string.Join(",", 
-                        EscapeCsvField(req.Id.ToString()),
-                        EscapeCsvField(req.Method),
-                        EscapeCsvField(req.Url),
-                        EscapeCsvField(req.Host),
-                        EscapeCsvField(req.Path),
-                        EscapeCsvField(req.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")),
-                        EscapeCsvField(req.IsProxied.ToString()),
-                        EscapeCsvField(req.ContentSize.ToString()),
-                        EscapeCsvField(req.ContentType),
-                        EscapeCsvField(req.ResponseStatus?.ToString() ?? ""),
-                        EscapeCsvField(req.ResponseTime?.ToString() ?? "")
-                    ));
+                    var statusCode = request.Response != null ? request.Response.StatusCode.ToString() : "N/A";
+                    var date = request.Date.ToString("yyyy-MM-dd HH:mm:ss");
+                    var path = EscapeCsvField(request.Path ?? "");
+                    
+                    writer.WriteLine($"{request.Id},{date},{request.Method},{request.Host},{path},{request.IsProxied},{statusCode}");
                 }
                 
-                return Encoding.UTF8.GetBytes(csv.ToString());
+                writer.Flush();
+                return memoryStream.ToArray();
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Errore durante l'esportazione CSV: {ex.Message}");
+                _logger.LogError(ex, "Errore durante l'esportazione CSV");
                 throw;
             }
         }
         
         /// <summary>
-        /// Esporta i dettagli di una specifica richiesta in formato JSON
+        /// Esporta i dettagli di una specifica richiesta HTTP come JSON
         /// </summary>
         public async Task<byte[]> ExportRequestDetailsAsJsonAsync(int requestId)
         {
+            _logger.LogInformation($"Esportazione dettagli della richiesta {requestId}");
+            
             try
             {
-                _logger.LogInformation($"Esportazione dettagli richiesta ID: {requestId}");
-                
-                var request = await _context.Requests
+                var request = await _dbContext.Requests
                     .Include(r => r.Response)
                     .FirstOrDefaultAsync(r => r.Id == requestId);
-                
+                    
                 if (request == null)
                 {
-                    _logger.LogWarning($"Richiesta con ID {requestId} non trovata");
-                    throw new KeyNotFoundException($"Request with ID {requestId} not found");
+                    throw new KeyNotFoundException($"Richiesta con ID {requestId} non trovata");
                 }
                 
-                var requestDetails = new
+                // Crea un oggetto semplificato con i dati di richiesta e risposta
+                var exportData = new
                 {
-                    Request = new
+                    request = new
                     {
                         request.Id,
-                        request.Method,
                         request.Url,
+                        request.Method,
                         request.Host,
                         request.Path,
                         request.QueryString,
-                        Headers = ParseHeaders(request.Headers),
-                        request.Timestamp,
-                        request.IsProxied,
-                        Content = request.Content != null ? System.Text.Encoding.UTF8.GetString(request.Content) : null,
-                        request.ContentType
+                        request.Headers,
+                        request.Body,
+                        request.ContentType,
+                        request.Date,
+                        request.IsProxied
                     },
-                    Response = request.Response != null ? new
+                    response = request.Response != null ? new
                     {
                         request.Response.Id,
                         request.Response.StatusCode,
-                        Headers = ParseHeaders(request.Response.Headers),
-                        Content = request.Response.Content != null ? System.Text.Encoding.UTF8.GetString(request.Response.Content) : null,
+                        request.Response.Headers,
+                        request.Response.Body,
                         request.Response.ContentType,
-                        request.Response.ResponseTime
+                        request.Response.Date
                     } : null
                 };
                 
-                var options = new JsonSerializerOptions
-                {
-                    WriteIndented = true,
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                };
-                
-                return JsonSerializer.SerializeToUtf8Bytes(requestDetails, options);
+                var json = JsonConvert.SerializeObject(exportData, Formatting.Indented);
+                return Encoding.UTF8.GetBytes(json);
             }
-            catch (KeyNotFoundException)
+            catch (Exception ex) when (!(ex is KeyNotFoundException))
             {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Errore durante l'esportazione dei dettagli della richiesta {requestId}: {ex.Message}");
+                _logger.LogError(ex, $"Errore durante l'esportazione dei dettagli della richiesta {requestId}");
                 throw;
             }
         }
         
         /// <summary>
-        /// Ottiene le richieste filtrate in base ai parametri specificati
+        /// Ottiene le richieste filtrate dal database
         /// </summary>
-        private IQueryable<Models.HttpRequest> GetFilteredRequests(
-            DateTime? fromDate = null, 
-            DateTime? toDate = null, 
-            string method = null, 
-            string host = null)
+        private async Task<List<HttpRequest>> GetFilteredRequestsAsync(
+            DateTime? fromDate, 
+            DateTime? toDate, 
+            string? method, 
+            string? host)
         {
-            var query = _context.Requests
+            var query = _dbContext.Requests
                 .Include(r => r.Response)
                 .AsQueryable();
-            
+                
+            // Applica i filtri
             if (fromDate.HasValue)
             {
-                query = query.Where(r => r.Timestamp >= fromDate.Value);
+                query = query.Where(r => r.Date >= fromDate.Value);
             }
             
             if (toDate.HasValue)
             {
-                // Impostiamo l'ora a fine giornata
-                var endOfDay = toDate.Value.Date.AddDays(1).AddMilliseconds(-1);
-                query = query.Where(r => r.Timestamp <= endOfDay);
+                query = query.Where(r => r.Date <= toDate.Value);
             }
             
             if (!string.IsNullOrEmpty(method))
@@ -246,52 +199,14 @@ namespace BackendService
                 query = query.Where(r => r.Host.Contains(host));
             }
             
-            return query;
-        }
-        
-        /// <summary>
-        /// Converte l'header da stringa in un dizionario di chiave-valore
-        /// </summary>
-        private Dictionary<string, string> ParseHeaders(string headers)
-        {
-            if (string.IsNullOrEmpty(headers))
-            {
-                return new Dictionary<string, string>();
-            }
+            // Ordina per data (più recenti prima)
+            query = query.OrderByDescending(r => r.Date);
             
-            try
-            {
-                var headerDict = new Dictionary<string, string>();
-                var headerLines = headers.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-                
-                foreach (var line in headerLines)
-                {
-                    int colonIndex = line.IndexOf(':');
-                    if (colonIndex > 0)
-                    {
-                        string key = line.Substring(0, colonIndex).Trim();
-                        string value = colonIndex < line.Length - 1 
-                            ? line.Substring(colonIndex + 1).Trim() 
-                            : string.Empty;
-                        
-                        if (!headerDict.ContainsKey(key))
-                        {
-                            headerDict.Add(key, value);
-                        }
-                    }
-                }
-                
-                return headerDict;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning($"Errore durante il parsing degli headers: {ex.Message}");
-                return new Dictionary<string, string>();
-            }
+            return await query.ToListAsync();
         }
         
         /// <summary>
-        /// Funzione per l'escape dei campi CSV
+        /// Prepara un campo per l'esportazione CSV
         /// </summary>
         private string EscapeCsvField(string field)
         {
@@ -300,12 +215,12 @@ namespace BackendService
                 return "";
             }
             
-            bool containsSpecialChars = field.Contains(',') || field.Contains('"') || field.Contains('\n');
-            if (containsSpecialChars)
+            // Se il campo contiene virgole, virgolette o ritorni a capo, racchiudilo tra virgolette
+            if (field.Contains(",") || field.Contains("\"") || field.Contains("\n") || field.Contains("\r"))
             {
-                // Sostituzione dei doppi apici con doppi apici doppi (escape CSV standard)
+                // Sostituisci le virgolette con due virgolette (standard CSV)
                 field = field.Replace("\"", "\"\"");
-                // Racchiusione in doppi apici
+                // Racchiudi tra virgolette
                 return $"\"{field}\"";
             }
             

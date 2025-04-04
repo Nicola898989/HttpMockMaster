@@ -3,7 +3,7 @@ import axios from 'axios';
 /**
  * URL di base per le API
  */
-const API_BASE_URL = 'http://localhost:5000/api';
+const BASE_URL = 'http://localhost:5000/api';
 
 /**
  * Servizio per l'esportazione delle richieste HTTP in vari formati
@@ -21,20 +21,15 @@ export const exportService = {
   async exportAsJson(filters = {}) {
     try {
       const params = this._buildFilterParams(filters);
-      const response = await axios.get(`${API_BASE_URL}/export/json`, {
-        params,
-        responseType: 'blob'
+      
+      const response = await axios({
+        url: `${BASE_URL}/export/json`,
+        method: 'GET',
+        responseType: 'blob',
+        params: params
       });
       
-      // Generiamo il nome del file
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = filters.host
-        ? `export_${filters.host}_${timestamp}.json`
-        : `export_${timestamp}.json`;
-      
-      // Scarichiamo il file
-      this.downloadFile(response.data, filename);
-      
+      this.downloadFile(response.data, `requests_export_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`);
       return response.data;
     } catch (error) {
       console.error('Errore durante l\'esportazione JSON:', error);
@@ -54,20 +49,15 @@ export const exportService = {
   async exportAsCsv(filters = {}) {
     try {
       const params = this._buildFilterParams(filters);
-      const response = await axios.get(`${API_BASE_URL}/export/csv`, {
-        params,
-        responseType: 'blob'
+      
+      const response = await axios({
+        url: `${BASE_URL}/export/csv`,
+        method: 'GET',
+        responseType: 'blob',
+        params: params
       });
       
-      // Generiamo il nome del file
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = filters.host
-        ? `export_${filters.host}_${timestamp}.csv`
-        : `export_${timestamp}.csv`;
-      
-      // Scarichiamo il file
-      this.downloadFile(response.data, filename);
-      
+      this.downloadFile(response.data, `requests_export_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`);
       return response.data;
     } catch (error) {
       console.error('Errore durante l\'esportazione CSV:', error);
@@ -82,20 +72,16 @@ export const exportService = {
    */
   async exportRequestDetails(requestId) {
     try {
-      const response = await axios.get(`${API_BASE_URL}/export/request/${requestId}`, {
+      const response = await axios({
+        url: `${BASE_URL}/export/request/${requestId}`,
+        method: 'GET',
         responseType: 'blob'
       });
       
-      // Generiamo il nome del file
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `request_details_${requestId}_${timestamp}.json`;
-      
-      // Scarichiamo il file
-      this.downloadFile(response.data, filename);
-      
+      this.downloadFile(response.data, `request_details_${requestId}_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`);
       return response.data;
     } catch (error) {
-      console.error(`Errore durante l'esportazione della richiesta ${requestId}:`, error);
+      console.error(`Errore durante l'esportazione dei dettagli della richiesta ${requestId}:`, error);
       throw new Error(this._getErrorMessage(error));
     }
   },
@@ -106,24 +92,16 @@ export const exportService = {
    * @param {string} filename - Il nome del file da utilizzare
    */
   downloadFile(blob, filename) {
-    // Creiamo un URL oggetto per il blob
     const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
     
-    // Creiamo un elemento anchor temporaneo per il download
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    a.download = filename;
-    
-    // Aggiungiamo l'elemento al DOM, facciamo click e poi lo rimuoviamo
-    document.body.appendChild(a);
-    a.click();
-    
-    // Cleanup
-    window.setTimeout(() => {
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    }, 100);
+    // Pulizia
+    link.parentNode.removeChild(link);
+    window.URL.revokeObjectURL(url);
   },
   
   /**
@@ -135,12 +113,16 @@ export const exportService = {
   _buildFilterParams(filters) {
     const params = {};
     
-    if (filters.fromDate instanceof Date && !isNaN(filters.fromDate)) {
-      params.fromDate = filters.fromDate.toISOString();
+    if (filters.fromDate) {
+      params.fromDate = filters.fromDate instanceof Date 
+        ? filters.fromDate.toISOString() 
+        : filters.fromDate;
     }
     
-    if (filters.toDate instanceof Date && !isNaN(filters.toDate)) {
-      params.toDate = filters.toDate.toISOString();
+    if (filters.toDate) {
+      params.toDate = filters.toDate instanceof Date 
+        ? filters.toDate.toISOString() 
+        : filters.toDate;
     }
     
     if (filters.method) {
@@ -162,14 +144,11 @@ export const exportService = {
    */
   _getErrorMessage(error) {
     if (error.response) {
-      // La richiesta è stata fatta e il server ha risposto con uno stato di errore
-      return `Errore dal server: ${error.response.status} - ${error.response.statusText}`;
+      return `Errore ${error.response.status}: ${error.response.data || 'Si è verificato un errore durante l\'esportazione'}`;
     } else if (error.request) {
-      // La richiesta è stata fatta ma non è stata ricevuta risposta
-      return 'Errore di connessione: Nessuna risposta dal server';
+      return 'Impossibile raggiungere il server. Verifica la connessione.';
     } else {
-      // Qualcosa nel setup della richiesta ha triggerato un errore
-      return `Errore: ${error.message}`;
+      return error.message || 'Errore sconosciuto durante l\'esportazione';
     }
   }
 };
